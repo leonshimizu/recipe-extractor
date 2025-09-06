@@ -13,6 +13,26 @@ export type RecipeJSON = {
   media: { thumbnail: string | null };
   totalEstimatedCost: number | null;
   costLocation: string;
+  nutrition: {
+    perServing: {
+      calories: number | null;
+      protein: number | null; // grams
+      carbs: number | null; // grams
+      fat: number | null; // grams
+      fiber: number | null; // grams
+      sugar: number | null; // grams
+      sodium: number | null; // milligrams
+    };
+    total: {
+      calories: number | null;
+      protein: number | null;
+      carbs: number | null;
+      fat: number | null;
+      fiber: number | null;
+      sugar: number | null;
+      sodium: number | null;
+    };
+  };
 };
 
 export const recipes = pgTable('recipes', {

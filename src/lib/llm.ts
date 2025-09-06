@@ -23,7 +23,27 @@ export const RecipeSchema = z.object({
   notes: z.string().nullable(),
   tags: z.array(z.string()).default([]),
   totalEstimatedCost: z.number().nullable(),
-  costLocation: z.string()
+  costLocation: z.string(),
+  nutrition: z.object({
+    perServing: z.object({
+      calories: z.number().nullable(),
+      protein: z.number().nullable(), // grams
+      carbs: z.number().nullable(), // grams
+      fat: z.number().nullable(), // grams
+      fiber: z.number().nullable(), // grams
+      sugar: z.number().nullable(), // grams
+      sodium: z.number().nullable() // milligrams
+    }),
+    total: z.object({
+      calories: z.number().nullable(),
+      protein: z.number().nullable(),
+      carbs: z.number().nullable(),
+      fat: z.number().nullable(),
+      fiber: z.number().nullable(),
+      sugar: z.number().nullable(),
+      sodium: z.number().nullable()
+    })
+  })
 });
 
 // Function to clean text and remove problematic Unicode characters
@@ -81,6 +101,14 @@ Rules:
   * Use null only if ingredient is unclear
 - Calculate totalEstimatedCost as sum of all ingredient costs
 - Set costLocation to exactly: ${location}
+- For nutrition, calculate realistic nutritional values based on ingredients and quantities:
+  * Analyze each ingredient for calories, protein, carbs, fat, fiber, sugar, sodium
+  * Use standard USDA nutritional data as reference
+  * Calculate BOTH perServing and total nutrition values
+  * perServing = total nutrition ÷ servings (if servings is known)
+  * Round calories to nearest 5, macros to nearest 0.5g, sodium to nearest 10mg
+  * Common examples: 1 cup flour ≈ 455 cal, 1 tbsp oil ≈ 120 cal, 1 egg ≈ 70 cal
+  * Use null only if ingredients are too vague to estimate
 - If servings unknown, use null (not "null" string)
 - Equipment only if mentioned explicitly.
 - Tags should include cuisine type, dietary restrictions, cooking method if mentioned.

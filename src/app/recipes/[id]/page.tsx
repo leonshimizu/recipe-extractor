@@ -196,6 +196,148 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
           </div>
         )}
 
+        {/* Nutrition Information */}
+        {(r.nutrition?.perServing?.calories || r.nutrition?.total?.calories) && (
+          <div className="mt-8">
+            <div className="bg-white border border-gray-200 rounded-2xl p-8">
+              <div className="flex items-center mb-6">
+                <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center mr-4">
+                  <span className="text-gray-700 text-lg">📊</span>
+                </div>
+                <h2 className="text-xl font-medium text-gray-900">Nutrition Facts</h2>
+              </div>
+              
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Per Serving */}
+                {r.nutrition.perServing && r.servings && (
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-6">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4 text-center">Per Serving</h3>
+                    <div className="space-y-3">
+                      {r.nutrition.perServing.calories && (
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                          <span className="font-medium text-gray-700">Calories</span>
+                          <span className="text-lg font-semibold text-gray-900">{r.nutrition.perServing.calories}</span>
+                        </div>
+                      )}
+                      {r.nutrition.perServing.protein && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Protein</span>
+                          <span className="font-medium text-gray-900">{r.nutrition.perServing.protein}g</span>
+                        </div>
+                      )}
+                      {r.nutrition.perServing.carbs && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Carbs</span>
+                          <span className="font-medium text-gray-900">{r.nutrition.perServing.carbs}g</span>
+                        </div>
+                      )}
+                      {r.nutrition.perServing.fat && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Fat</span>
+                          <span className="font-medium text-gray-900">{r.nutrition.perServing.fat}g</span>
+                        </div>
+                      )}
+                      {r.nutrition.perServing.fiber && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Fiber</span>
+                          <span className="font-medium text-gray-900">{r.nutrition.perServing.fiber}g</span>
+                        </div>
+                      )}
+                      {r.nutrition.perServing.sugar && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Sugar</span>
+                          <span className="font-medium text-gray-900">{r.nutrition.perServing.sugar}g</span>
+                        </div>
+                      )}
+                      {r.nutrition.perServing.sodium && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Sodium</span>
+                          <span className="font-medium text-gray-900">{r.nutrition.perServing.sodium}mg</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Total Recipe */}
+                {r.nutrition.total && (
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-6">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4 text-center">Total Recipe</h3>
+                    <div className="space-y-3">
+                      {r.nutrition.total.calories && (
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                          <span className="font-medium text-gray-700">Calories</span>
+                          <span className="text-lg font-semibold text-gray-900">{r.nutrition.total.calories}</span>
+                        </div>
+                      )}
+                      {r.nutrition.total.protein && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Protein</span>
+                          <span className="font-medium text-gray-900">{r.nutrition.total.protein}g</span>
+                        </div>
+                      )}
+                      {r.nutrition.total.carbs && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Carbs</span>
+                          <span className="font-medium text-gray-900">{r.nutrition.total.carbs}g</span>
+                        </div>
+                      )}
+                      {r.nutrition.total.fat && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Fat</span>
+                          <span className="font-medium text-gray-900">{r.nutrition.total.fat}g</span>
+                        </div>
+                      )}
+                      {r.nutrition.total.fiber && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Fiber</span>
+                          <span className="font-medium text-gray-900">{r.nutrition.total.fiber}g</span>
+                        </div>
+                      )}
+                      {r.nutrition.total.sugar && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Sugar</span>
+                          <span className="font-medium text-gray-900">{r.nutrition.total.sugar}g</span>
+                        </div>
+                      )}
+                      {r.nutrition.total.sodium && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Sodium</span>
+                          <span className="font-medium text-gray-900">{r.nutrition.total.sodium}mg</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Macro Breakdown Visual */}
+              {r.nutrition.perServing && r.nutrition.perServing.protein && r.nutrition.perServing.carbs && r.nutrition.perServing.fat && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3 text-center">Macronutrient Breakdown (Per Serving)</h4>
+                  <div className="flex justify-center space-x-6 text-sm">
+                    <div className="text-center">
+                      <div className="w-3 h-3 bg-blue-500 rounded-full mx-auto mb-1"></div>
+                      <div className="font-medium text-gray-900">Protein</div>
+                      <div className="text-gray-600">{Math.round((r.nutrition.perServing.protein * 4 / (r.nutrition.perServing.calories || 1)) * 100)}%</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="w-3 h-3 bg-green-500 rounded-full mx-auto mb-1"></div>
+                      <div className="font-medium text-gray-900">Carbs</div>
+                      <div className="text-gray-600">{Math.round((r.nutrition.perServing.carbs * 4 / (r.nutrition.perServing.calories || 1)) * 100)}%</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="w-3 h-3 bg-yellow-500 rounded-full mx-auto mb-1"></div>
+                      <div className="font-medium text-gray-900">Fat</div>
+                      <div className="text-gray-600">{Math.round((r.nutrition.perServing.fat * 9 / (r.nutrition.perServing.calories || 1)) * 100)}%</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Equipment & Notes */}
         <div className="mt-8 space-y-8">
           {r.equipment.length > 0 && (
