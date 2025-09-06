@@ -51,36 +51,35 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
               </a>
               <span className="text-gray-300">•</span>
               <span className="capitalize font-medium">Source: {row.sourceType}</span>
-              {r.servings && (
-                <>
-                  <span className="text-gray-300">•</span>
-                  <span className="font-medium">Serves: {r.servings}</span>
-                </>
-              )}
             </div>
             
-            {(r.times.prep || r.times.cook || r.times.total) && (
-              <div className="flex flex-wrap gap-6 mb-6">
-                {r.times.prep && (
-                  <div className="bg-gray-50 px-4 py-3 rounded-xl border border-gray-200">
-                    <span className="text-xs text-gray-600 font-medium uppercase tracking-wide">Prep</span>
-                    <div className="text-sm font-semibold text-gray-900 mt-1">{r.times.prep}</div>
-                  </div>
-                )}
-                {r.times.cook && (
-                  <div className="bg-gray-50 px-4 py-3 rounded-xl border border-gray-200">
-                    <span className="text-xs text-gray-600 font-medium uppercase tracking-wide">Cook</span>
-                    <div className="text-sm font-semibold text-gray-900 mt-1">{r.times.cook}</div>
-                  </div>
-                )}
-                {r.times.total && (
-                  <div className="bg-gray-50 px-4 py-3 rounded-xl border border-gray-200">
-                    <span className="text-xs text-gray-600 font-medium uppercase tracking-wide">Total</span>
-                    <div className="text-sm font-semibold text-gray-900 mt-1">{r.times.total}</div>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Recipe Metrics */}
+            <div className="flex flex-wrap gap-4 mb-6">
+              {r.servings && (
+                <div className="bg-blue-50 px-4 py-3 rounded-xl border border-blue-200">
+                  <span className="text-xs text-blue-600 font-medium uppercase tracking-wide">Servings</span>
+                  <div className="text-lg font-bold text-blue-900 mt-1">{r.servings}</div>
+                </div>
+              )}
+              {r.times.prep && (
+                <div className="bg-gray-50 px-4 py-3 rounded-xl border border-gray-200">
+                  <span className="text-xs text-gray-600 font-medium uppercase tracking-wide">Prep</span>
+                  <div className="text-sm font-semibold text-gray-900 mt-1">{r.times.prep}</div>
+                </div>
+              )}
+              {r.times.cook && (
+                <div className="bg-gray-50 px-4 py-3 rounded-xl border border-gray-200">
+                  <span className="text-xs text-gray-600 font-medium uppercase tracking-wide">Cook</span>
+                  <div className="text-sm font-semibold text-gray-900 mt-1">{r.times.cook}</div>
+                </div>
+              )}
+              {r.times.total && (
+                <div className="bg-gray-50 px-4 py-3 rounded-xl border border-gray-200">
+                  <span className="text-xs text-gray-600 font-medium uppercase tracking-wide">Total</span>
+                  <div className="text-sm font-semibold text-gray-900 mt-1">{r.times.total}</div>
+                </div>
+              )}
+            </div>
             
             {r.tags.length > 0 && (
               <div className="flex flex-wrap gap-2">
@@ -200,18 +199,28 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
         {(r.nutrition?.perServing?.calories || r.nutrition?.total?.calories) && (
           <div className="mt-8">
             <div className="bg-white border border-gray-200 rounded-2xl p-8">
-              <div className="flex items-center mb-6">
-                <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center mr-4">
-                  <span className="text-gray-700 text-lg">📊</span>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center">
+                  <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center mr-4">
+                    <span className="text-gray-700 text-lg">📊</span>
+                  </div>
+                  <h2 className="text-xl font-medium text-gray-900">Nutrition Facts</h2>
                 </div>
-                <h2 className="text-xl font-medium text-gray-900">Nutrition Facts</h2>
+                {r.servings && (
+                  <div className="bg-blue-50 px-3 py-1 rounded-lg border border-blue-200">
+                    <span className="text-xs text-blue-600 font-medium">Recipe makes {r.servings} servings</span>
+                  </div>
+                )}
               </div>
               
               <div className="grid md:grid-cols-2 gap-6">
                 {/* Per Serving */}
                 {r.nutrition.perServing && r.servings && (
-                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4 text-center">Per Serving</h3>
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+                    <h3 className="text-lg font-semibold text-blue-900 mb-4 text-center flex items-center justify-center">
+                      <span className="mr-2">🍽️</span>
+                      Per Serving (1 of {r.servings})
+                    </h3>
                     <div className="space-y-3">
                       {r.nutrition.perServing.calories && (
                         <div className="flex justify-between items-center py-2 border-b border-gray-200">
@@ -261,8 +270,11 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
 
                 {/* Total Recipe */}
                 {r.nutrition.total && (
-                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4 text-center">Total Recipe</h3>
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-6">
+                    <h3 className="text-lg font-semibold text-green-900 mb-4 text-center flex items-center justify-center">
+                      <span className="mr-2">🥘</span>
+                      Total Recipe ({r.servings ? `${r.servings} servings` : 'Entire batch'})
+                    </h3>
                     <div className="space-y-3">
                       {r.nutrition.total.calories && (
                         <div className="flex justify-between items-center py-2 border-b border-gray-200">
@@ -310,6 +322,25 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
                   </div>
                 )}
               </div>
+
+              {/* Quick Serving Calculator */}
+              {r.servings && r.nutrition.perServing && r.nutrition.perServing.calories && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <h4 className="text-sm font-medium text-gray-700 mb-4 text-center">Quick Reference</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="bg-white border border-gray-200 rounded-lg p-4 text-center">
+                      <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Per Serving</div>
+                      <div className="text-lg font-bold text-blue-600">{r.nutrition.perServing.calories} cal</div>
+                      <div className="text-xs text-gray-600">1 of {r.servings} servings</div>
+                    </div>
+                    <div className="bg-white border border-gray-200 rounded-lg p-4 text-center">
+                      <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Total Recipe</div>
+                      <div className="text-lg font-bold text-green-600">{r.nutrition.total?.calories || (r.nutrition.perServing.calories * r.servings)} cal</div>
+                      <div className="text-xs text-gray-600">All {r.servings} servings</div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Macro Breakdown Visual */}
               {r.nutrition.perServing && r.nutrition.perServing.protein && r.nutrition.perServing.carbs && r.nutrition.perServing.fat && (
