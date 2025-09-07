@@ -44,7 +44,7 @@ export async function extractYouTubeContent(url: string): Promise<ExtractedConte
       
       if (captionTracks.length > 0) {
         // Find English captions (auto-generated or manual)
-        const englishTrack = captionTracks.find((track: any) => 
+        const englishTrack = captionTracks.find((track: { languageCode: string; baseUrl?: string }) => 
           track.languageCode === 'en' || track.languageCode === 'en-US'
         ) || captionTracks[0];
         

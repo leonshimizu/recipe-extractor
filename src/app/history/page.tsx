@@ -2,6 +2,7 @@ import { db } from '@/db';
 import { recipes } from '@/db/schema';
 import { desc } from 'drizzle-orm';
 import Link from 'next/link';
+import Image from 'next/image';
 import DeleteRecipeButton from '@/components/DeleteRecipeButton';
 
 // Force dynamic rendering to prevent caching issues
@@ -45,10 +46,11 @@ export default async function HistoryPage() {
                 {/* Recipe Image */}
                 {recipe.thumbnailUrl && (
                   <div className="aspect-video relative overflow-hidden">
-                    <img
+                    <Image
                       src={recipe.thumbnailUrl}
                       alt={recipe.extracted.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-200"
                     />
                   </div>
                 )}

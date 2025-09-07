@@ -14,7 +14,7 @@ export async function GET() {
     console.log('🔍 DATABASE_URL last 30 chars:', process.env.DATABASE_URL?.slice(-30));
     
     // Test basic database connection
-    const connectionTest = await db.select().from(recipes).limit(1);
+    await db.select().from(recipes).limit(1);
     console.log('✅ Basic connection test passed');
     
     // Get all recipes with detailed info
