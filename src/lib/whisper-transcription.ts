@@ -171,7 +171,9 @@ async function downloadAudio(videoUrl: string): Promise<{
 
 /**
  * Extract video ID from YouTube URL
+ * Currently unused - kept for potential future use
  */
+/*
 function extractVideoId(url: string): string | null {
   const patterns = [
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([^&\n?#]+)/,
@@ -184,9 +186,10 @@ function extractVideoId(url: string): string | null {
       return match[1];
     }
   }
-
+  
   return null;
 }
+*/
 
 /**
  * Check if Whisper transcription is available (has API key and dependencies)
