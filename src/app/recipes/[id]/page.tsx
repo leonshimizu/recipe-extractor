@@ -215,11 +215,11 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
               
               <div className="grid md:grid-cols-2 gap-6">
                 {/* Per Serving */}
-                {r.nutrition.perServing && r.servings && (
+                {r.nutrition.perServing && (r.nutrition.perServing.calories || r.nutrition.perServing.protein || r.nutrition.perServing.carbs) && (
                   <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
                     <h3 className="text-lg font-semibold text-blue-900 mb-4 text-center flex items-center justify-center">
                       <span className="mr-2">🍽️</span>
-                      Per Serving (1 of {r.servings})
+                      Per Serving{r.servings ? ` (1 of ${r.servings})` : ''}
                     </h3>
                     <div className="space-y-3">
                       {r.nutrition.perServing.calories && (
@@ -324,19 +324,19 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
               </div>
 
               {/* Quick Serving Calculator */}
-              {r.servings && r.nutrition.perServing && r.nutrition.perServing.calories && (
+              {r.nutrition.perServing && r.nutrition.perServing.calories && r.nutrition.total && r.nutrition.total.calories && (
                 <div className="mt-6 pt-6 border-t border-gray-200">
                   <h4 className="text-sm font-medium text-gray-700 mb-4 text-center">Quick Reference</h4>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div className="bg-white border border-gray-200 rounded-lg p-4 text-center">
                       <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Per Serving</div>
                       <div className="text-lg font-bold text-blue-600">{r.nutrition.perServing.calories} cal</div>
-                      <div className="text-xs text-gray-600">1 of {r.servings} servings</div>
+                      <div className="text-xs text-gray-600">{r.servings ? `1 of ${r.servings} servings` : 'Single serving'}</div>
                     </div>
                     <div className="bg-white border border-gray-200 rounded-lg p-4 text-center">
                       <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Total Recipe</div>
-                      <div className="text-lg font-bold text-green-600">{r.nutrition.total?.calories || (r.nutrition.perServing.calories * r.servings)} cal</div>
-                      <div className="text-xs text-gray-600">All {r.servings} servings</div>
+                      <div className="text-lg font-bold text-green-600">{r.nutrition.total.calories} cal</div>
+                      <div className="text-xs text-gray-600">{r.servings ? `All ${r.servings} servings` : 'Entire batch'}</div>
                     </div>
                   </div>
                 </div>

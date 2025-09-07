@@ -106,15 +106,19 @@ EXTRACTION RULES:
   * Use null only if ingredient is unclear
 - Calculate totalEstimatedCost as sum of all ingredient costs
 - Set costLocation to exactly: ${location}
+- For servings, ALWAYS try to estimate a reasonable number based on ingredient quantities:
+  * Look at total amounts (1 lb pasta typically serves 4-6 people)
+  * Consider portion sizes for the type of dish (appetizer vs main course)
+  * If truly impossible to estimate, use null, but this should be rare
 - For nutrition, calculate realistic nutritional values based on ingredients and quantities:
   * Analyze each ingredient for calories, protein, carbs, fat, fiber, sugar, sodium
   * Use standard USDA nutritional data as reference
-  * Calculate BOTH perServing and total nutrition values
-  * perServing = total nutrition ÷ servings (if servings is known)
+  * ALWAYS calculate BOTH perServing and total nutrition values
+  * If servings is known: perServing = total nutrition ÷ servings
+  * If servings is unknown: estimate reasonable per-serving portions anyway
   * Round calories to nearest 5, macros to nearest 0.5g, sodium to nearest 10mg
   * Common examples: 1 cup flour ≈ 455 cal, 1 tbsp oil ≈ 120 cal, 1 egg ≈ 70 cal
-  * Use null only if ingredients are too vague to estimate
-- If servings unknown, use null (not "null" string)
+  * NEVER leave both perServing and total nutrition empty - always provide both
 - Equipment only if mentioned explicitly.
 - Tags should include cuisine type, dietary restrictions, cooking method if mentioned.
 - If no clear recipe is found, create a basic structure with the available information.`;
