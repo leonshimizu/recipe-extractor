@@ -4,6 +4,9 @@ import { desc } from 'drizzle-orm';
 import Link from 'next/link';
 import DeleteRecipeButton from '@/components/DeleteRecipeButton';
 
+// Force dynamic rendering to prevent caching issues
+export const dynamic = 'force-dynamic';
+
 export default async function HistoryPage() {
   const allRecipes = await db.select().from(recipes).orderBy(desc(recipes.createdAt));
 
