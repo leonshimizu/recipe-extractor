@@ -72,20 +72,25 @@ export async function extractRecipe({ sourceUrl, raw, location = 'Guam' }: { sou
   // Additional safety check - convert to ASCII only
   const asciiOnlyRaw = sanitizedRaw.replace(/[^\x00-\x7F]/g, ' ').replace(/\s+/g, ' ').trim();
   
-    const promptText = `You are a culinary extraction engine. From the raw text or caption below, extract a recipe.
+    const promptText = `You are a culinary extraction engine. From the video content below, extract a complete recipe.
+The content may include video title, description, and/or transcript/captions.
 Return ONLY the fields in the schema.
 If info is missing, return null (not the string "null") or [] accordingly.
 
 IMPORTANT: You MUST include ALL required fields in your response:
 - sourceUrl: ${sourceUrl}
 
-RAW:
+VIDEO CONTENT:
 ${asciiOnlyRaw}
 
-Rules:
+EXTRACTION RULES:
 - Set sourceUrl to exactly: ${sourceUrl}
+- CAREFULLY read through ALL the content (title, description, transcript) to find recipe details
+- Look for ingredients mentioned anywhere in the content, including spoken instructions
+- Extract ALL cooking steps, including details like "toast the tomato paste" or "add heavy cream"
+- Pay attention to cooking techniques mentioned in video transcripts (sautéing, browning, etc.)
 - Ingredients should be concise, each item one line.
-- Steps should be actionable and ordered.
+- Steps should be actionable and ordered, including ALL mentioned techniques.
 - For times, extract ALL timing components:
   * prep: Time for mixing, chopping, blending ingredients (estimate if not explicit)
   * cook: Active cooking time (microwave, oven, stovetop, etc.)

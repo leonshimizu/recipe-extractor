@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { recipes, type RecipeJSON } from '@/db/schema';
 import { detectSource, fetchInstagramOEmbed, fetchTikTokOEmbed, fetchYouTubeOEmbed } from '@/lib/sources';
 import { extractRecipe } from '@/lib/llm';
+import { extractVideoContent } from '@/lib/video-extractor';
 import { eq } from 'drizzle-orm';
 
 // Ensure we use the .env.local file and override any system environment variables
@@ -34,18 +35,35 @@ export async function POST(req: NextRequest) {
 
     let title = '';
     let thumb: string | undefined;
+    let enhancedContent = '';
 
     try {
-      if (source === 'youtube') {
-        const data = await fetchYouTubeOEmbed(url);
-        title = data.title ?? title;
-        thumb = data.thumbnail_url ?? thumb;
-        // For v1 we don't attempt transcript; keep rawText as provided.
-      } else if (source === 'tiktok') {
-        const data = await fetchTikTokOEmbed(url);
-        title = data.title ?? title;
-        thumb = data.thumbnail_url ?? thumb;
-        // captions are usually sparse; rely on notes
+      // First, try enhanced video extraction for YouTube/TikTok
+      if (source === 'youtube' || source === 'tiktok') {
+        console.log(`🎥 Attempting enhanced extraction for ${source}:`, url);
+        
+        const videoContent = await extractVideoContent(url);
+        
+        if (videoContent.combinedText) {
+          title = videoContent.title || title;
+          thumb = videoContent.thumbnail || thumb;
+          enhancedContent = videoContent.combinedText;
+          
+          console.log(`✅ Enhanced extraction successful - ${enhancedContent.length} chars`);
+        } else {
+          console.log('⚠️ Enhanced extraction returned empty, falling back to oEmbed');
+          
+          // Fallback to oEmbed
+          if (source === 'youtube') {
+            const data = await fetchYouTubeOEmbed(url);
+            title = data.title ?? title;
+            thumb = data.thumbnail_url ?? thumb;
+          } else if (source === 'tiktok') {
+            const data = await fetchTikTokOEmbed(url);
+            title = data.title ?? title;
+            thumb = data.thumbnail_url ?? thumb;
+          }
+        }
       } else if (source === 'instagram') {
         const data = await fetchInstagramOEmbed(url);
         title = data.title ?? title;
@@ -54,12 +72,14 @@ export async function POST(req: NextRequest) {
         // regular web page (future: parse JSON-LD schema.org/Recipe if you add web scraping)
       }
     } catch (e) {
-      // If oEmbed fails, continue with minimal data
-      console.error('oEmbed failed', e);
+      // If extraction fails, continue with minimal data
+      console.error('Video extraction failed, using basic data:', e);
     }
 
-    // Build "raw" for the LLM (title + notes for MVP)
-    const raw = [title, notes].filter(Boolean).join('\n\n');
+    // Build "raw" for the LLM (enhanced content + user notes, or fallback to title + notes)
+    const raw = [enhancedContent || title, notes].filter(Boolean).join('\n\n');
+    
+    console.log(`📝 Final raw content length: ${raw.length} chars`);
 
     const extracted = await extractRecipe({
       sourceUrl: url,
