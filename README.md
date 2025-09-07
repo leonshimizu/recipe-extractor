@@ -57,13 +57,20 @@ touch .env.local
 # Add your API keys and database URL:
 echo "DATABASE_URL=your_neon_database_url" >> .env.local
 echo "OPENAI_API_KEY=your_openai_api_key" >> .env.local
-echo "IG_OEMBED_TOKEN=your_instagram_token_optional" >> .env.local
+# Optional: Only add if you want Instagram support
+# echo "IG_OEMBED_TOKEN=your_instagram_token" >> .env.local
 ```
 
 **Required Environment Variables:**
 - `DATABASE_URL` - Your Neon PostgreSQL connection string
 - `OPENAI_API_KEY` - OpenAI API key (needs GPT-4 and Whisper access)
-- `IG_OEMBED_TOKEN` - Instagram oEmbed token (optional, for Instagram support)
+
+**Optional Environment Variables:**
+- `IG_OEMBED_TOKEN` - Instagram oEmbed token (only needed for Instagram video support)
+  - Requires Facebook/Instagram Developer approval
+  - Without this token, Instagram URLs will fail to process
+  - Most users can skip this since Instagram only provides basic text extraction
+  - **To get token**: Create Facebook Developer account → Create app → Get Instagram oEmbed access token
 
 3. **Database Setup:**
 ```bash
@@ -123,9 +130,9 @@ git push
    - Go to [vercel.com](https://vercel.com)
    - Import your GitHub repository
    - Add environment variables:
-     - `DATABASE_URL`
-     - `OPENAI_API_KEY`
-     - `IG_OEMBED_TOKEN` (optional)
+     - `DATABASE_URL` (required)
+     - `OPENAI_API_KEY` (required)
+     - `IG_OEMBED_TOKEN` (optional - only if you want Instagram support)
 
 3. **Deploy!** ✅
 
@@ -158,9 +165,9 @@ git push
 - **oEmbed APIs** - Video metadata extraction
 
 ### **External APIs**
-- **TikTok oEmbed** - Video metadata and thumbnails
-- **YouTube oEmbed** - Video metadata and thumbnails
-- **Instagram oEmbed** - Basic video information (requires token)
+- **TikTok oEmbed** - Video metadata and thumbnails (no token required)
+- **YouTube oEmbed** - Video metadata and thumbnails (no token required)
+- **Instagram oEmbed** - Basic video information (requires Facebook Developer token)
 
 ## 📱 PWA Installation
 
@@ -178,6 +185,8 @@ git push
 
 ### **Platform Limitations:**
 - **Instagram**: Limited to title/description text only (no audio access)
+  - Requires `IG_OEMBED_TOKEN` from Facebook Developer account
+  - Without token, Instagram URLs will fail to process
 - **Private/Restricted Videos**: Cannot access audio or metadata
 - **Very Short Videos**: May not contain enough recipe information
 
