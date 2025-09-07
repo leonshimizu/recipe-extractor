@@ -44,48 +44,60 @@ export default function NewRecipePage() {
   }
 
   return (
-    <main className="min-h-screen bg-white">
-      <div className="max-w-2xl mx-auto px-4 pt-8 pb-12 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-gray-50">
+      <div className="max-w-lg mx-auto px-4 pt-6 pb-8 sm:px-6">
         {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-3xl sm:text-4xl font-light text-gray-900 mb-4 tracking-tight">
+        <div className="text-center mb-8">
+          <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900 mb-2">
             Extract Recipe
           </h1>
-          <p className="text-gray-600 text-base font-light">
-            Transform your favorite TikTok cooking videos into detailed recipes with AI
+          <p className="text-gray-600 text-sm">
+            Transform cooking videos into detailed recipes
           </p>
         </div>
 
         {/* Main Form Card */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 mb-6">
-          <form onSubmit={onSubmit} className="space-y-8">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-4">
+          <form onSubmit={onSubmit} className="space-y-6">
+            {/* URL Input */}
             <div>
-              <label htmlFor="url" className="block text-sm font-medium text-gray-900 mb-3">
-                Recipe URL
+              <label htmlFor="url" className="block text-sm font-medium text-gray-900 mb-2">
+                Video URL
               </label>
               <input
                 id="url"
                 type="url"
                 value={url}
                 onChange={e => setUrl(e.target.value)}
-                placeholder="https://www.tiktok.com/@user/video/..."
+                placeholder="Paste TikTok, YouTube, or Instagram URL..."
                 required
-                className="w-full px-4 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-500"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all text-gray-900 placeholder-gray-400"
               />
-              <p className="text-xs text-gray-500 mt-2 font-light">
-                Supports TikTok, Instagram, and YouTube URLs
-              </p>
+              
+              {/* Compact Platform Badges */}
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                <span className="inline-flex items-center px-2 py-1 rounded-md bg-green-50 text-green-700 text-xs font-medium border border-green-200">
+                  🎤 YouTube
+                </span>
+                <span className="inline-flex items-center px-2 py-1 rounded-md bg-green-50 text-green-700 text-xs font-medium border border-green-200">
+                  🎤 TikTok
+                </span>
+                <span className="inline-flex items-center px-2 py-1 rounded-md bg-orange-50 text-orange-700 text-xs font-medium border border-orange-200">
+                  📝 Instagram
+                </span>
+              </div>
             </div>
             
+            {/* Location Selector */}
             <div>
-              <label htmlFor="location" className="block text-sm font-medium text-gray-900 mb-3">
+              <label htmlFor="location" className="block text-sm font-medium text-gray-900 mb-2">
                 Cost Location
               </label>
               <select
                 id="location"
                 value={location}
                 onChange={e => setLocation(e.target.value)}
-                className="w-full px-4 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all duration-200 text-gray-900 appearance-none bg-white"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all text-gray-900 bg-white"
               >
                 <option value="Guam">Guam</option>
                 <option value="Hawaii">Hawaii</option>
@@ -98,49 +110,76 @@ export default function NewRecipePage() {
                 <option value="South Korea">South Korea</option>
                 <option value="Singapore">Singapore</option>
               </select>
-              <p className="text-xs text-gray-500 mt-2 font-light">
-                Ingredient costs will be estimated based on this location
+              <p className="text-xs text-gray-500 mt-1">
+                For ingredient cost estimates
               </p>
             </div>
 
+            {/* Notes */}
             <div>
-              <label htmlFor="notes" className="block text-sm font-medium text-gray-900 mb-3">
-                Additional Notes <span className="text-gray-400 font-light">(optional)</span>
+              <label htmlFor="notes" className="block text-sm font-medium text-gray-900 mb-2">
+                Additional Notes <span className="text-gray-400 font-normal">(optional)</span>
               </label>
               <textarea
                 id="notes"
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                placeholder="Add any ingredients, steps, or details you noticed in the video..."
-                rows={4}
-                className="w-full px-4 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none transition-all duration-200 text-gray-900 placeholder-gray-500"
+                placeholder="Any extra details you noticed..."
+                rows={3}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none transition-all text-gray-900 placeholder-gray-400"
               />
             </div>
             
+            {/* Error Message */}
             {error && (
-              <div className={`rounded-xl p-4 ${error.startsWith('✓') ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-                <p className={`text-sm font-medium ${error.startsWith('✓') ? 'text-green-800' : 'text-red-800'}`}>{error}</p>
+              <div className={`rounded-xl p-3 ${error.startsWith('✓') ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                <p className={`text-sm ${error.startsWith('✓') ? 'text-green-700' : 'text-red-700'}`}>{error}</p>
               </div>
             )}
 
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gray-900 text-white py-4 px-6 rounded-xl font-medium hover:bg-gray-800 focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              className="w-full bg-gray-900 text-white py-3 px-6 rounded-xl font-medium hover:bg-gray-800 focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
             >
               {loading ? (
                 <span className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Extracting Recipe...
+                  Extracting...
                 </span>
               ) : (
                 "Extract Recipe"
               )}
             </button>
           </form>
+        </div>
+
+        {/* Compact Info Card */}
+        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0 w-6 h-6 bg-gray-100 rounded-lg flex items-center justify-center mt-0.5">
+              <span className="text-gray-600 text-sm">ℹ️</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-medium text-gray-900 mb-1">
+                Quality Levels
+              </h3>
+              <div className="text-xs text-gray-700 space-y-1">
+                <div className="flex items-center">
+                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full mr-2 flex-shrink-0"></span>
+                  <span><strong>YouTube & TikTok:</strong> Full audio transcription</span>
+                </div>
+                <div className="flex items-center">
+                  <span className="w-1.5 h-1.5 bg-orange-500 rounded-full mr-2 flex-shrink-0"></span>
+                  <span><strong>Instagram:</strong> Text only (limited)</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
       </div>

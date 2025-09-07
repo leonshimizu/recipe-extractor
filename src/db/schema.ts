@@ -1,11 +1,11 @@
-import { pgTable, uuid, text, timestamp, jsonb, varchar } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, jsonb, varchar, boolean } from 'drizzle-orm/pg-core';
 
 export type RecipeJSON = {
   title: string;
   sourceUrl: string;
   servings: number | null;
   times: { prep: string | null; cook: string | null; total: string | null };
-  ingredients: { quantity: string | null; unit: string | null; name: string; notes?: string | null; estimatedCost: number | null }[];
+  ingredients: { quantity: string | null; unit: string | null; name: string; notes?: string | null; estimatedCost?: number | null }[];
   steps: string[];
   equipment: string[];
   notes: string | null;
@@ -42,5 +42,8 @@ export const recipes = pgTable('recipes', {
   rawText: text('raw_text'),
   extracted: jsonb('extracted').$type<RecipeJSON>().notNull(),
   thumbnailUrl: text('thumbnail_url'),
+  extractionMethod: varchar('extraction_method', { length: 32 }), // whisper|basic|oembed|manual
+  extractionQuality: varchar('extraction_quality', { length: 16 }), // high|medium|low
+  hasAudioTranscript: boolean('has_audio_transcript').default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });

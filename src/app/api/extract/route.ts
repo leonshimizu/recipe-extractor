@@ -4,6 +4,7 @@ import { recipes, type RecipeJSON } from '@/db/schema';
 import { detectSource, fetchInstagramOEmbed, fetchTikTokOEmbed, fetchYouTubeOEmbed } from '@/lib/sources';
 import { extractRecipe } from '@/lib/llm';
 import { extractVideoContent } from '@/lib/video-extractor';
+import { transcribeVideoWithWhisper, isWhisperAvailable } from '@/lib/whisper-transcription';
 import { eq } from 'drizzle-orm';
 
 // Ensure we use the .env.local file and override any system environment variables
@@ -36,32 +37,116 @@ export async function POST(req: NextRequest) {
     let title = '';
     let thumb: string | undefined;
     let enhancedContent = '';
+    let extractionMethod = 'oembed';
+    let extractionQuality = 'low';
+    let hasAudioTranscript = false;
 
     try {
       // First, try enhanced video extraction for YouTube/TikTok
       if (source === 'youtube' || source === 'tiktok') {
         console.log(`🎥 Attempting enhanced extraction for ${source}:`, url);
         
-        const videoContent = await extractVideoContent(url);
-        
-        if (videoContent.combinedText) {
-          title = videoContent.title || title;
-          thumb = videoContent.thumbnail || thumb;
-          enhancedContent = videoContent.combinedText;
+        // Try Whisper transcription for better quality
+        if (isWhisperAvailable()) {
+          console.log('🎤 Whisper API available, attempting audio transcription...');
           
-          console.log(`✅ Enhanced extraction successful - ${enhancedContent.length} chars`);
+          const transcriptionResult = await transcribeVideoWithWhisper(url);
+          
+          if (transcriptionResult.success && transcriptionResult.text) {
+            console.log(`✅ Whisper transcription successful - ${transcriptionResult.text.length} chars`);
+            
+            // Get basic video info
+            const videoContent = await extractVideoContent(url);
+            title = videoContent.title || title;
+            thumb = videoContent.thumbnail || thumb;
+            
+            // If we don't have a thumbnail from basic extraction, try oEmbed
+            if (!thumb) {
+              console.log('🖼️ No thumbnail from basic extraction, trying oEmbed...');
+              if (source === 'youtube') {
+                const data = await fetchYouTubeOEmbed(url);
+                thumb = data.thumbnail_url || thumb;
+              } else if (source === 'tiktok') {
+                const data = await fetchTikTokOEmbed(url);
+                thumb = data.thumbnail_url || thumb;
+              }
+            }
+            
+            // Combine title, description, and Whisper transcript
+            enhancedContent = [
+              videoContent.title,
+              videoContent.description,
+              'SPOKEN CONTENT (from audio):',
+              transcriptionResult.text
+            ].filter(Boolean).join('\n\n');
+            
+            // Set extraction metadata
+            extractionMethod = 'whisper';
+            extractionQuality = 'high';
+            hasAudioTranscript = true;
+            
+            console.log(`✅ Enhanced content with Whisper transcript - ${enhancedContent.length} chars total`);
+          } else {
+            console.log(`⚠️ Whisper transcription failed: ${transcriptionResult.error}`);
+            console.log('Falling back to basic video extraction...');
+            
+            const videoContent = await extractVideoContent(url);
+            
+            if (videoContent.combinedText) {
+              title = videoContent.title || title;
+              thumb = videoContent.thumbnail || thumb;
+              enhancedContent = videoContent.combinedText;
+              
+              // Set extraction metadata for basic extraction
+              extractionMethod = 'basic';
+              extractionQuality = videoContent.captions ? 'medium' : 'low';
+              hasAudioTranscript = false;
+              
+              console.log(`✅ Basic extraction successful - ${enhancedContent.length} chars`);
+            } else {
+              console.log('⚠️ Basic extraction returned empty, falling back to oEmbed');
+              
+              // Fallback to oEmbed
+              if (source === 'youtube') {
+                const data = await fetchYouTubeOEmbed(url);
+                title = data.title ?? title;
+                thumb = data.thumbnail_url ?? thumb;
+              } else if (source === 'tiktok') {
+                const data = await fetchTikTokOEmbed(url);
+                title = data.title ?? title;
+                thumb = data.thumbnail_url ?? thumb;
+              }
+            }
+          }
         } else {
-          console.log('⚠️ Enhanced extraction returned empty, falling back to oEmbed');
+          console.log('⚠️ Whisper API not available (missing OPENAI_API_KEY), using basic extraction');
           
-          // Fallback to oEmbed
-          if (source === 'youtube') {
-            const data = await fetchYouTubeOEmbed(url);
-            title = data.title ?? title;
-            thumb = data.thumbnail_url ?? thumb;
-          } else if (source === 'tiktok') {
-            const data = await fetchTikTokOEmbed(url);
-            title = data.title ?? title;
-            thumb = data.thumbnail_url ?? thumb;
+          const videoContent = await extractVideoContent(url);
+          
+          if (videoContent.combinedText) {
+            title = videoContent.title || title;
+            thumb = videoContent.thumbnail || thumb;
+            enhancedContent = videoContent.combinedText;
+            
+            // Set extraction metadata for basic extraction (no Whisper available)
+            extractionMethod = 'basic';
+            extractionQuality = videoContent.captions ? 'medium' : 'low';
+            hasAudioTranscript = false;
+            
+            console.log(`✅ Basic extraction successful - ${enhancedContent.length} chars`);
+          } else {
+            console.log('⚠️ Basic extraction returned empty, falling back to oEmbed');
+            
+            // Fallback to oEmbed
+            if (source === 'youtube') {
+              const data = await fetchYouTubeOEmbed(url);
+              title = data.title ?? title;
+              thumb = data.thumbnail_url ?? thumb;
+            } else if (source === 'tiktok') {
+              const data = await fetchTikTokOEmbed(url);
+              title = data.title ?? title;
+              thumb = data.thumbnail_url ?? thumb;
+            }
           }
         }
       } else if (source === 'instagram') {
@@ -80,6 +165,9 @@ export async function POST(req: NextRequest) {
     const raw = [enhancedContent || title, notes].filter(Boolean).join('\n\n');
     
     console.log(`📝 Final raw content length: ${raw.length} chars`);
+    console.log(`📝 Enhanced content length: ${enhancedContent.length} chars`);
+    console.log(`📝 Title: ${title}`);
+    console.log(`📝 Raw content preview: ${raw.substring(0, 200)}...`);
 
     const extracted = await extractRecipe({
       sourceUrl: url,
@@ -100,7 +188,10 @@ export async function POST(req: NextRequest) {
       sourceType: source,
       rawText: raw,
       extracted: record,
-      thumbnailUrl: record.media?.thumbnail ?? null
+      thumbnailUrl: record.media?.thumbnail ?? null,
+      extractionMethod,
+      extractionQuality,
+      hasAudioTranscript,
     }).returning({ id: recipes.id });
 
     return Response.json({ id: inserted[0].id, recipe: record });

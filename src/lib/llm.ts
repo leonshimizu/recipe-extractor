@@ -3,7 +3,7 @@ import { generateObject } from 'ai';
 import { openai } from '@ai-sdk/openai';
 
 export const RecipeSchema = z.object({
-  title: z.string(),
+  title: z.string().min(1),
   sourceUrl: z.string().url(),
   servings: z.number().int().nullable(),
   times: z.object({ 
@@ -16,7 +16,7 @@ export const RecipeSchema = z.object({
     unit: z.string().nullable(),
     name: z.string(),
     notes: z.string().nullable().optional(),
-    estimatedCost: z.number().nullable()
+    estimatedCost: z.number().nullable().optional()
   })),
   steps: z.array(z.string()),
   equipment: z.array(z.string()),
@@ -89,6 +89,11 @@ EXTRACTION RULES:
 - Look for ingredients mentioned anywhere in the content, including spoken instructions
 - Extract ALL cooking steps, including details like "toast the tomato paste" or "add heavy cream"
 - Pay attention to cooking techniques mentioned in video transcripts (sautéing, browning, etc.)
+- For ingredients, format properly:
+  * quantity: Use null (not "null" string) if no quantity specified
+  * unit: Use null (not "null" string) if no unit specified  
+  * For items without quantities (like "salt to taste"), set quantity and unit to null
+  * Examples: {"quantity": "2", "unit": "cups", "name": "flour"} or {"quantity": null, "unit": null, "name": "salt"}
 - Ingredients should be concise, each item one line.
 - Steps should be actionable and ordered, including ALL mentioned techniques.
 - For times, extract ALL timing components:
@@ -98,12 +103,13 @@ EXTRACTION RULES:
   * Look for: "microwave for X", "set in fridge for X", "chill for X", "rest for X"
   * Use null (not "null" string) only if truly no timing info exists
   * Format as "15 min", "1 hour", "2-3 hours"
-- For ingredient costs (estimatedCost), provide realistic grocery store prices in USD for ${location}:
+- For ingredient costs (estimatedCost), ALWAYS provide realistic grocery store prices in USD for ${location}:
+  * REQUIRED: Every ingredient must have an estimatedCost field
   * Base estimates on typical grocery store prices in ${location} for the specified quantities
   * Consider regional price differences: Guam/Hawaii tend to be 20-40% higher than mainland US
   * Japan: convert from yen (¥100-150 ≈ $1), UK: convert from pounds (£0.75 ≈ $1)
   * Round to nearest $0.25 (e.g., 0.50, 0.75, 1.00, 1.25)
-  * Use null only if ingredient is unclear
+  * Use null only if ingredient is completely unclear, but estimate when possible
 - Calculate totalEstimatedCost as sum of all ingredient costs
 - Set costLocation to exactly: ${location}
 - For servings, ALWAYS try to estimate a reasonable number based on ingredient quantities:
@@ -130,7 +136,9 @@ EXTRACTION RULES:
   * Occasion: "weeknight", "weekend", "holiday", "party", "comfort-food", "healthy"
   * Time: "quick" (under 30 min), "medium" (30-60 min), "long" (over 1 hour)
   * Use lowercase, hyphenated format for consistency
-- If no clear recipe is found, create a basic structure with the available information.`;
+- If no clear recipe is found, create a basic structure with the available information.
+- IMPORTANT: Always provide a meaningful title (never null or empty). If unclear, use the source content or create a descriptive title like "Recipe from [source]".
+- IMPORTANT: If ingredients or steps are unclear, make reasonable assumptions based on context rather than leaving arrays empty.`;
 
   const { object } = await generateObject({
     model: openai('gpt-4o-mini'),

@@ -42,6 +42,63 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
               <h1 className="text-4xl sm:text-5xl font-light text-gray-900 mb-6 tracking-tight">{r.title}</h1>
             )}
             
+            {/* Extraction Quality Info - Moved to top */}
+            {row.extractionMethod && (
+              <div className={`mb-6 border rounded-xl p-4 ${
+                row.extractionQuality === 'high' 
+                  ? 'bg-green-50 border-green-200' 
+                  : row.extractionQuality === 'medium'
+                  ? 'bg-amber-50 border-amber-200'
+                  : 'bg-orange-50 border-orange-200'
+              }`}>
+                <div className="flex items-start gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl ${
+                    row.extractionQuality === 'high' 
+                      ? 'bg-green-100' 
+                      : row.extractionQuality === 'medium'
+                      ? 'bg-amber-100'
+                      : 'bg-orange-100'
+                  }`}>
+                    {row.hasAudioTranscript ? '🎤' : '📝'}
+                  </div>
+                  
+                  <div className="flex-1">
+                    <h3 className={`text-sm font-semibold mb-1 ${
+                      row.extractionQuality === 'high' 
+                        ? 'text-green-900' 
+                        : row.extractionQuality === 'medium'
+                        ? 'text-amber-900'
+                        : 'text-orange-900'
+                    }`}>
+                      {row.hasAudioTranscript ? 'High Quality - Audio Transcribed' : 'Text-Based Extraction'}
+                    </h3>
+                    
+                    <p className={`text-xs leading-relaxed ${
+                      row.extractionQuality === 'high' 
+                        ? 'text-green-800' 
+                        : row.extractionQuality === 'medium'
+                        ? 'text-amber-800'
+                        : 'text-orange-800'
+                    }`}>
+                      {row.hasAudioTranscript ? (
+                        <>
+                          All spoken instructions captured using AI audio transcription for maximum accuracy.
+                        </>
+                      ) : row.extractionQuality === 'medium' ? (
+                        <>
+                          Extracted from video title, description, and captions. Some details may be inferred.
+                        </>
+                      ) : (
+                        <>
+                          Extracted from limited text. Some ingredients and steps may be inferred.
+                        </>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-6">
               <a
                 href={row.sourceUrl}
@@ -114,22 +171,33 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
                   <div className="w-2 h-2 bg-gray-400 rounded-full mr-4 mt-3 flex-shrink-0"></div>
                   <div className="flex-1">
                     <span className="text-gray-700 leading-relaxed">
-                      {ing.quantity && ing.unit ? (
-                        <>
-                          <span className="font-semibold text-gray-900">
-                            {ing.quantity} {ing.unit}
-                          </span>
-                          <span> {ing.name}</span>
-                        </>
-                      ) : ing.quantity && !ing.unit ? (
-                        <>
-                          <span className="font-semibold text-gray-900">{ing.quantity}</span>
-                          <span> {ing.name}</span>
-                        </>
-                      ) : (
-                        <span>{ing.name}</span>
-                      )}
-                      {ing.notes && <span className="text-gray-500 italic"> ({ing.notes})</span>}
+                      {(() => {
+                        // Clean up null/undefined values
+                        const quantity = ing.quantity && ing.quantity !== 'null' ? ing.quantity : null;
+                        const unit = ing.unit && ing.unit !== 'null' ? ing.unit : null;
+                        
+                        if (quantity && unit) {
+                          return (
+                            <>
+                              <span className="font-semibold text-gray-900">
+                                {quantity} {unit}
+                              </span>
+                              <span> {ing.name}</span>
+                            </>
+                          );
+                        } else if (quantity && !unit) {
+                          return (
+                            <>
+                              <span className="font-semibold text-gray-900">{quantity}</span>
+                              <span> {ing.name}</span>
+                            </>
+                          );
+                        } else {
+                          // No quantity or unit - just show the ingredient name
+                          return <span className="font-semibold text-gray-900">{ing.name}</span>;
+                        }
+                      })()}
+                      {ing.notes && ing.notes !== 'null' && <span className="text-gray-500 italic"> ({ing.notes})</span>}
                     </span>
                     {ing.estimatedCost && (
                       <div className="text-sm text-gray-600 font-medium mt-1">
@@ -405,6 +473,7 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
             </div>
           )}
         </div>
+
         
         {/* Action Button */}
         <div className="mt-12 text-center">

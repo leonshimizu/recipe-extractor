@@ -13,7 +13,7 @@ export default function Home() {
             Recipe Extractor
           </h1>
           <p className="text-lg text-gray-600 mb-10 max-w-2xl mx-auto leading-relaxed font-light">
-            Transform your favorite TikTok cooking videos into detailed, structured recipes with AI
+            Transform your favorite cooking videos into detailed, structured recipes with AI
           </p>
           <Link
             href="/new"
@@ -32,7 +32,7 @@ export default function Home() {
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-3">Multi-Platform Support</h3>
             <p className="text-gray-600 font-light leading-relaxed">
-              Extract recipes from TikTok, Instagram, and YouTube videos seamlessly
+              High-quality extraction from YouTube & TikTok with audio transcription. Basic support for Instagram.
             </p>
           </div>
 
