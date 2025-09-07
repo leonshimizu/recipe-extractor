@@ -120,7 +120,16 @@ EXTRACTION RULES:
   * Common examples: 1 cup flour ≈ 455 cal, 1 tbsp oil ≈ 120 cal, 1 egg ≈ 70 cal
   * NEVER leave both perServing and total nutrition empty - always provide both
 - Equipment only if mentioned explicitly.
-- Tags should include cuisine type, dietary restrictions, cooking method if mentioned.
+- For tags, provide comprehensive categorization (5-10 tags total):
+  * Main ingredient(s): "chicken", "beef", "pasta", "rice", "eggs", "vegetables"
+  * Cuisine type: "italian", "mexican", "asian", "american", "mediterranean"
+  * Meal type: "breakfast", "lunch", "dinner", "snack", "dessert", "appetizer"
+  * Cooking method: "baked", "fried", "grilled", "slow-cooked", "no-cook", "one-pot"
+  * Difficulty: "easy", "intermediate", "advanced"
+  * Dietary: "vegetarian", "vegan", "gluten-free", "dairy-free", "keto", "low-carb"
+  * Occasion: "weeknight", "weekend", "holiday", "party", "comfort-food", "healthy"
+  * Time: "quick" (under 30 min), "medium" (30-60 min), "long" (over 1 hour)
+  * Use lowercase, hyphenated format for consistency
 - If no clear recipe is found, create a basic structure with the available information.`;
 
   const { object } = await generateObject({
