@@ -55,8 +55,8 @@ async function debugRecipeExtractor() {
     const historyResponse = await fetch('/history');
     const historyHTML = await historyResponse.text();
     
-    // Extract recipe count from history page
-    const recipeCountMatch = historyHTML.match(/(\d+)\s+recipes?\s+extracted/);
+    // Extract recipe count from history page (handle React HTML comments)
+    const recipeCountMatch = historyHTML.match(/(\d+)(?:<!--\s*-->)?\s*recipes?(?:<!--\s*-->)?\s*(?:<!--\s*-->)?\s*extracted/);
     const historyRecipeCount = recipeCountMatch ? parseInt(recipeCountMatch[1]) : 0;
     
     results.tests.historyPage = {
