@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { exec, execSync } from 'child_process';
+import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs/promises';
 import path from 'path';
@@ -200,21 +200,18 @@ function extractVideoId(url: string): string | null {
 */
 
 /**
- * Check if Whisper transcription is available (has API key and yt-dlp)
+ * Check if Whisper transcription is available (has API key)
+ * Note: We don't check for yt-dlp here because it might be available at runtime
+ * even if not detected during build/startup phase
  */
 export function isWhisperAvailable(): boolean {
   if (!process.env.OPENAI_API_KEY) {
+    console.log('🎤 [WHISPER] OpenAI API key not found - Whisper transcription unavailable');
     return false;
   }
   
-  // Check if yt-dlp is available by trying to run it
-  try {
-    execSync('which yt-dlp', { stdio: 'ignore' });
-    return true;
-  } catch {
-    console.log('🎤 [WHISPER] yt-dlp not found - Whisper transcription unavailable');
-    return false;
-  }
+  // Only check for API key - let yt-dlp be checked at runtime
+  return true;
 }
 
 /**
