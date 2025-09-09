@@ -2,6 +2,20 @@ import { z } from 'zod';
 import { generateObject } from 'ai';
 import { openai } from '@ai-sdk/openai';
 
+// Component schema for individual recipe parts (e.g., meatloaf, glaze, sauce)
+const RecipeComponentSchema = z.object({
+  name: z.string().min(1), // e.g., "Meatloaf", "Glaze", "Sauce"
+  ingredients: z.array(z.object({
+    quantity: z.string().nullable(),
+    unit: z.string().nullable(),
+    name: z.string(),
+    notes: z.string().nullable().optional(),
+    estimatedCost: z.number().nullable().optional()
+  })),
+  steps: z.array(z.string()),
+  notes: z.string().nullable().optional()
+});
+
 export const RecipeSchema = z.object({
   title: z.string().min(1),
   sourceUrl: z.string().url(),
@@ -11,16 +25,19 @@ export const RecipeSchema = z.object({
     cook: z.string().nullable(), 
     total: z.string().nullable() 
   }),
+  // New component-based structure
+  components: z.array(RecipeComponentSchema).min(1),
+  // Legacy fields for backward compatibility (will be auto-populated from components)
   ingredients: z.array(z.object({
     quantity: z.string().nullable(),
     unit: z.string().nullable(),
     name: z.string(),
     notes: z.string().nullable().optional(),
     estimatedCost: z.number().nullable().optional()
-  })),
-  steps: z.array(z.string()),
+  })).optional(),
+  steps: z.array(z.string()).optional(),
   equipment: z.array(z.string()).nullable().default([]),
-  notes: z.string().nullable(),
+  notes: z.string().nullable().optional(), // Made optional
   tags: z.array(z.string()).default([]),
   totalEstimatedCost: z.number().nullable(),
   costLocation: z.string(),
@@ -80,9 +97,9 @@ export async function extractRecipe({ sourceUrl, raw, location = 'Guam' }: { sou
   const asciiOnlyRaw = sanitizedRaw.replace(/[^\x00-\x7F]/g, ' ').replace(/\s+/g, ' ').trim();
   console.log('🤖 [LLM] ASCII-only content length:', asciiOnlyRaw.length);
   
-    const promptText = `You are a culinary extraction engine. From the video content below, extract ONE COMPLETE RECIPE.
+    const promptText = `You are a culinary extraction engine. From the video content below, extract ONE COMPLETE RECIPE with properly organized components.
 
-CRITICAL: Extract ONE comprehensive recipe that includes ALL food items/dishes mentioned in the video. If multiple dishes are shown (like a sauce AND a main dish), include ALL components as parts of ONE complete recipe.
+CRITICAL COMPONENT STRUCTURE: If the recipe involves multiple distinct food items (like meatloaf + glaze, pasta + sauce, chicken + marinade), organize them as separate components within ONE recipe. Each component should have its own ingredients and steps.
 
 The content below includes the video title and any available transcript/description:
 
@@ -91,16 +108,22 @@ ${asciiOnlyRaw}
 EXTRACTION RULES:
 - Set sourceUrl to exactly: ${sourceUrl}
 - CAREFULLY read through ALL the content (title, description, transcript) to find recipe details
-- Look for ingredients mentioned anywhere in the content, including spoken instructions
-- Extract ALL cooking steps, including details like "toast the tomato paste" or "add heavy cream"
-- Pay attention to cooking techniques mentioned in video transcripts (sautéing, browning, etc.)
-- For ingredients, format properly:
+- COMPONENT ORGANIZATION:
+  * If recipe has multiple distinct parts (e.g., "meatloaf and glaze"), create separate components
+  * Component names should be clear: "Meatloaf", "Glaze", "Sauce", "Marinade", etc.
+  * Each component gets its own ingredients list and steps
+  * If it's a simple single-dish recipe, create one component with the dish name
+  * Examples:
+    - Meatloaf with glaze → Components: [{"name": "Meatloaf", ...}, {"name": "Glaze", ...}]
+    - Simple pasta → Components: [{"name": "Pasta Dish", ...}]
+    - Chicken with marinade → Components: [{"name": "Marinade", ...}, {"name": "Chicken", ...}]
+- For ingredients in each component, format properly:
   * quantity: Use null (not "null" string) if no quantity specified
   * unit: Use null (not "null" string) if no unit specified  
   * For items without quantities (like "salt to taste"), set quantity and unit to null
   * Examples: {"quantity": "2", "unit": "cups", "name": "flour"} or {"quantity": null, "unit": null, "name": "salt"}
-- Ingredients should be concise, each item one line.
-- Steps should be actionable and ordered, including ALL mentioned techniques.
+- Steps for each component should be actionable and ordered
+- Legacy fields (ingredients, steps) will be auto-populated - focus on the components array
 - For times, extract ALL timing components:
   * prep: Time for mixing, chopping, blending ingredients (estimate if not explicit)
   * cook: Active cooking time (microwave, oven, stovetop, etc.)
@@ -166,14 +189,30 @@ EXTRACTION RULES:
     prompt: promptText,
   });
   
-  console.log('🤖 [LLM] OpenAI response received:', {
-    title: object.title,
-    ingredientsCount: object.ingredients?.length || 0,
-    stepsCount: object.steps?.length || 0,
-    servings: object.servings,
-    hasTimes: !!(object.times?.prep || object.times?.cook || object.times?.total),
-    totalCost: object.totalEstimatedCost
+  // Auto-populate legacy fields from components for backward compatibility
+  const allIngredients = object.components.flatMap(component => component.ingredients);
+  const allSteps = object.components.flatMap((component) => {
+    const componentSteps = component.steps.map(step => 
+      object.components.length > 1 ? `${component.name}: ${step}` : step
+    );
+    return componentSteps;
   });
   
-  return object;
+  const finalObject = {
+    ...object,
+    ingredients: allIngredients,
+    steps: allSteps
+  };
+  
+  console.log('🤖 [LLM] OpenAI response received:', {
+    title: finalObject.title,
+    componentsCount: finalObject.components?.length || 0,
+    ingredientsCount: finalObject.ingredients?.length || 0,
+    stepsCount: finalObject.steps?.length || 0,
+    servings: finalObject.servings,
+    hasTimes: !!(finalObject.times?.prep || finalObject.times?.cook || finalObject.times?.total),
+    totalCost: finalObject.totalEstimatedCost
+  });
+  
+  return finalObject;
 }

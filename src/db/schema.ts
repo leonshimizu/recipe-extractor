@@ -1,14 +1,24 @@
 import { pgTable, uuid, text, timestamp, jsonb, varchar, boolean } from 'drizzle-orm/pg-core';
 
+export type RecipeComponent = {
+  name: string;
+  ingredients: { quantity: string | null; unit: string | null; name: string; notes?: string | null; estimatedCost?: number | null }[];
+  steps: string[];
+  notes?: string | null;
+};
+
 export type RecipeJSON = {
   title: string;
   sourceUrl: string;
   servings: number | null;
   times: { prep: string | null; cook: string | null; total: string | null };
+  // New component-based structure
+  components: RecipeComponent[];
+  // Legacy fields for backward compatibility
   ingredients: { quantity: string | null; unit: string | null; name: string; notes?: string | null; estimatedCost?: number | null }[];
   steps: string[];
   equipment: string[] | null;
-  notes: string | null;
+  notes?: string | null; // Made optional
   tags: string[];
   media: { thumbnail: string | null };
   totalEstimatedCost: number | null;

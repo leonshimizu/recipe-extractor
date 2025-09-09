@@ -176,86 +176,190 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
           </CardContent>
         </Card>
 
-        {/* Content Cards */}
-        <div className="grid lg:grid-cols-2 gap-6 sm:gap-8">
-          {/* Ingredients Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 sm:gap-3 text-lg sm:text-xl">
-                <span className="text-xl sm:text-2xl">🥄</span>
-                Ingredients
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-3 sm:space-y-4">
-                {r.ingredients.map((ing, i) => (
-                  <li key={i} className="flex items-start">
-                    <div className="w-2 h-2 bg-primary rounded-full mr-3 sm:mr-4 mt-2 sm:mt-3 flex-shrink-0"></div>
-                    <div className="flex-1">
-                      <span className="leading-relaxed">
-                        {(() => {
-                          // Clean up null/undefined values
-                          const quantity = ing.quantity && ing.quantity !== 'null' ? ing.quantity : null;
-                          const unit = ing.unit && ing.unit !== 'null' ? ing.unit : null;
-                          
-                          if (quantity && unit) {
-                            return (
-                              <>
-                                <span className="font-semibold">
-                                  {quantity} {unit}
-                                </span>
-                                <span> {ing.name}</span>
-                              </>
-                            );
-                          } else if (quantity && !unit) {
-                            return (
-                              <>
-                                <span className="font-semibold">{quantity}</span>
-                                <span> {ing.name}</span>
-                              </>
-                            );
-                          } else {
-                            // No quantity or unit - just show the ingredient name
-                            return <span className="font-semibold">{ing.name}</span>;
-                          }
-                        })()}
-                        {ing.notes && ing.notes !== 'null' && <span className="text-muted-foreground italic"> ({ing.notes})</span>}
-                      </span>
-                      {ing.estimatedCost && (
-                        <div className="text-sm text-muted-foreground font-medium mt-1 flex items-center gap-1">
-                          <DollarSign className="w-3 h-3" />
-                          {ing.estimatedCost.toFixed(2)}
-                        </div>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
+        {/* Recipe Components */}
+        {r.components && r.components.length > 0 ? (
+          <div className="space-y-8 sm:space-y-10">
+            {r.components.map((component, componentIndex) => (
+              <div key={componentIndex} className="space-y-6 sm:space-y-8">
+                {/* Component Header */}
+                {r.components.length > 1 && (
+                  <div className="text-center pt-4 sm:pt-6">
+                    <h2 className="text-xl sm:text-2xl font-bold text-primary mb-3 sm:mb-4">
+                      {component.name}
+                    </h2>
+                    {component.notes && (
+                      <p className="text-sm text-muted-foreground italic">
+                        {component.notes}
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                {/* Component Content */}
+                <div className="grid lg:grid-cols-2 gap-6 sm:gap-8">
+                  {/* Component Ingredients */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 sm:gap-3 text-lg sm:text-xl">
+                        <span className="text-xl sm:text-2xl">🥄</span>
+                        {r.components.length > 1 ? `${component.name} Ingredients` : 'Ingredients'}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="space-y-3 sm:space-y-4">
+                        {component.ingredients.map((ing, i) => (
+                          <li key={i} className="flex items-start">
+                            <div className="w-2 h-2 bg-primary rounded-full mr-3 sm:mr-4 mt-2 sm:mt-3 flex-shrink-0"></div>
+                            <div className="flex-1">
+                              <span className="leading-relaxed">
+                                {(() => {
+                                  // Clean up null/undefined values
+                                  const quantity = ing.quantity && ing.quantity !== 'null' ? ing.quantity : null;
+                                  const unit = ing.unit && ing.unit !== 'null' ? ing.unit : null;
+                                  
+                                  if (quantity && unit) {
+                                    return (
+                                      <>
+                                        <span className="font-semibold">
+                                          {quantity} {unit}
+                                        </span>
+                                        <span> {ing.name}</span>
+                                      </>
+                                    );
+                                  } else if (quantity && !unit) {
+                                    return (
+                                      <>
+                                        <span className="font-semibold">{quantity}</span>
+                                        <span> {ing.name}</span>
+                                      </>
+                                    );
+                                  } else {
+                                    // No quantity or unit - just show the ingredient name
+                                    return <span className="font-semibold">{ing.name}</span>;
+                                  }
+                                })()}
+                                {ing.notes && ing.notes !== 'null' && <span className="text-muted-foreground italic"> ({ing.notes})</span>}
+                              </span>
+                              {ing.estimatedCost && (
+                                <div className="text-sm text-muted-foreground font-medium mt-1 flex items-center gap-1">
+                                  <DollarSign className="w-3 h-3" />
+                                  {ing.estimatedCost.toFixed(2)}
+                                </div>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
 
-          {/* Instructions Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 sm:gap-3 text-lg sm:text-xl">
-                <span className="text-xl sm:text-2xl">📝</span>
-                Instructions
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ol className="space-y-4 sm:space-y-6">
-                {r.steps.map((step, i) => (
-                  <li key={i} className="flex items-start">
-                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-primary text-primary-foreground text-xs sm:text-sm font-medium rounded-full flex items-center justify-center mr-3 sm:mr-4 flex-shrink-0 mt-0.5">
-                      {i + 1}
-                    </div>
-                    <span className="leading-relaxed text-sm sm:text-base">{step}</span>
-                  </li>
-                ))}
-              </ol>
-            </CardContent>
-          </Card>
-        </div>
+                  {/* Component Instructions */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 sm:gap-3 text-lg sm:text-xl">
+                        <span className="text-xl sm:text-2xl">📝</span>
+                        {r.components.length > 1 ? `${component.name} Instructions` : 'Instructions'}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ol className="space-y-4 sm:space-y-6">
+                        {component.steps.map((step, i) => (
+                          <li key={i} className="flex items-start">
+                            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-primary text-primary-foreground text-xs sm:text-sm font-medium rounded-full flex items-center justify-center mr-3 sm:mr-4 flex-shrink-0 mt-0.5">
+                              {i + 1}
+                            </div>
+                            <span className="leading-relaxed text-sm sm:text-base">{step}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* Fallback to legacy structure for older recipes */
+          <div className="grid lg:grid-cols-2 gap-6 sm:gap-8">
+            {/* Legacy Ingredients Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 sm:gap-3 text-lg sm:text-xl">
+                  <span className="text-xl sm:text-2xl">🥄</span>
+                  Ingredients
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-3 sm:space-y-4">
+                  {r.ingredients.map((ing, i) => (
+                    <li key={i} className="flex items-start">
+                      <div className="w-2 h-2 bg-primary rounded-full mr-3 sm:mr-4 mt-2 sm:mt-3 flex-shrink-0"></div>
+                      <div className="flex-1">
+                        <span className="leading-relaxed">
+                          {(() => {
+                            // Clean up null/undefined values
+                            const quantity = ing.quantity && ing.quantity !== 'null' ? ing.quantity : null;
+                            const unit = ing.unit && ing.unit !== 'null' ? ing.unit : null;
+                            
+                            if (quantity && unit) {
+                              return (
+                                <>
+                                  <span className="font-semibold">
+                                    {quantity} {unit}
+                                  </span>
+                                  <span> {ing.name}</span>
+                                </>
+                              );
+                            } else if (quantity && !unit) {
+                              return (
+                                <>
+                                  <span className="font-semibold">{quantity}</span>
+                                  <span> {ing.name}</span>
+                                </>
+                              );
+                            } else {
+                              // No quantity or unit - just show the ingredient name
+                              return <span className="font-semibold">{ing.name}</span>;
+                            }
+                          })()}
+                          {ing.notes && ing.notes !== 'null' && <span className="text-muted-foreground italic"> ({ing.notes})</span>}
+                        </span>
+                        {ing.estimatedCost && (
+                          <div className="text-sm text-muted-foreground font-medium mt-1 flex items-center gap-1">
+                            <DollarSign className="w-3 h-3" />
+                            {ing.estimatedCost.toFixed(2)}
+                          </div>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+
+            {/* Legacy Instructions Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 sm:gap-3 text-lg sm:text-xl">
+                  <span className="text-xl sm:text-2xl">📝</span>
+                  Instructions
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ol className="space-y-4 sm:space-y-6">
+                  {r.steps.map((step, i) => (
+                    <li key={i} className="flex items-start">
+                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-primary text-primary-foreground text-xs sm:text-sm font-medium rounded-full flex items-center justify-center mr-3 sm:mr-4 flex-shrink-0 mt-0.5">
+                        {i + 1}
+                      </div>
+                      <span className="leading-relaxed text-sm sm:text-base">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Cost Summary */}
         {r.totalEstimatedCost && (
