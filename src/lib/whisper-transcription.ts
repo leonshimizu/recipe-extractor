@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { exec } from 'child_process';
+import { exec, execSync } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs/promises';
 import path from 'path';
@@ -200,10 +200,21 @@ function extractVideoId(url: string): string | null {
 */
 
 /**
- * Check if Whisper transcription is available (has API key and dependencies)
+ * Check if Whisper transcription is available (has API key and yt-dlp)
  */
 export function isWhisperAvailable(): boolean {
-  return !!process.env.OPENAI_API_KEY;
+  if (!process.env.OPENAI_API_KEY) {
+    return false;
+  }
+  
+  // Check if yt-dlp is available by trying to run it
+  try {
+    execSync('which yt-dlp', { stdio: 'ignore' });
+    return true;
+  } catch {
+    console.log('🎤 [WHISPER] yt-dlp not found - Whisper transcription unavailable');
+    return false;
+  }
 }
 
 /**

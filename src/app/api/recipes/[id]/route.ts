@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/db';
-import { recipes } from '@/db/schema';
+import { recipes, extractionJobs } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 
 export async function DELETE(
@@ -14,12 +14,20 @@ export async function DELETE(
       return new Response('Recipe ID is required', { status: 400 });
     }
 
-    // Delete the recipe
+    // First, delete any related extraction jobs
+    console.log(`🗑️ Deleting extraction jobs for recipe: ${id}`);
+    const deletedJobs = await db.delete(extractionJobs).where(eq(extractionJobs.recipeId, id)).returning({ id: extractionJobs.id });
+    console.log(`🗑️ Deleted ${deletedJobs.length} extraction job(s)`);
+
+    // Then delete the recipe
+    console.log(`🗑️ Deleting recipe: ${id}`);
     const deleted = await db.delete(recipes).where(eq(recipes.id, id)).returning({ id: recipes.id });
 
     if (deleted.length === 0) {
       return new Response('Recipe not found', { status: 404 });
     }
+
+    console.log(`✅ Successfully deleted recipe: ${id}`);
 
     return Response.json({ success: true, deletedId: deleted[0].id });
   } catch (error) {

@@ -145,7 +145,12 @@ export async function POST(req: NextRequest) {
             console.warn('⚠️ [EXTRACT-STREAM] Controller already closed, skipping update');
           }
         } catch (error) {
-          console.error('❌ [EXTRACT-STREAM] Error sending update:', error);
+          // Only log if it's not the expected "controller closed" error
+          if (error instanceof Error && error.message.includes('Controller is already closed')) {
+            console.warn('⚠️ [EXTRACT-STREAM] Stream closed by client, skipping update');
+          } else {
+            console.error('❌ [EXTRACT-STREAM] Error sending update:', error);
+          }
         }
       };
 
@@ -278,8 +283,8 @@ export async function POST(req: NextRequest) {
             })
           );
         } else {
-          console.log('🎤 [EXTRACT-STREAM] Whisper not available, skipping transcription');
-          await sendUpdate('transcription', 70, 'Audio transcription skipped (not available in serverless)');
+          console.log('🎤 [EXTRACT-STREAM] Whisper not available (missing OpenAI API key or yt-dlp), skipping transcription');
+          await sendUpdate('transcription', 70, 'Audio transcription skipped (dependencies not available)');
         }
 
         // Wait for all parallel operations
@@ -388,55 +393,95 @@ export async function POST(req: NextRequest) {
 
         await sendUpdate('complete', 100, 'Recipe extracted successfully!');
         
-        // Send final result
+        // Send final result (don't let streaming errors affect extraction success)
         console.log('📤 [EXTRACT-STREAM] Sending final success response...');
         const finalData = JSON.stringify({ 
           id: recipeId, 
           recipe: record,
           complete: true 
         });
-        controller.enqueue(encoder.encode(`data: ${finalData}\n\n`));
         
-      } catch (error) {
-        console.error('❌ [EXTRACT-STREAM] Extraction failed:', error);
-        console.error('❌ [EXTRACT-STREAM] Error details:', {
-          message: error instanceof Error ? error.message : 'Unknown error',
-          stack: error instanceof Error ? error.stack : undefined,
-          url,
-          location
-        });
-        
-        // Mark job as failed in database
-        if (jobId) {
-          try {
-            await db.update(extractionJobs)
-              .set({
-                status: 'failed',
-                currentStep: 'error',
-                message: 'Extraction failed',
-                errorMessage: error instanceof Error ? error.message : 'Unknown error',
-                completedAt: new Date(),
-                updatedAt: new Date()
-              })
-              .where(eq(extractionJobs.id, jobId));
-            console.log('❌ [EXTRACT-STREAM] Job marked as failed in database');
-          } catch (dbError) {
-            console.warn('⚠️ [EXTRACT-STREAM] Failed to mark job as failed:', dbError);
+        try {
+          if (controller.desiredSize !== null) {
+            controller.enqueue(encoder.encode(`data: ${finalData}\n\n`));
+          } else {
+            console.warn('⚠️ [EXTRACT-STREAM] Controller closed, skipping final response');
+          }
+        } catch (finalError) {
+          if (finalError instanceof Error && finalError.message.includes('Controller is already closed')) {
+            console.warn('⚠️ [EXTRACT-STREAM] Stream closed by client, skipping final response');
+          } else {
+            console.error('❌ [EXTRACT-STREAM] Error sending final response:', finalError);
           }
         }
         
-        const errorData = JSON.stringify({ 
-          error: 'Extraction failed', 
-          message: error instanceof Error ? error.message : 'Unknown error' 
-        });
-        controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
+        // Extraction completed successfully - don't let streaming errors change this
+        console.log('✅ [EXTRACT-STREAM] Extraction completed successfully');
+        
+      } catch (error) {
+        // Check if this is just a streaming error after successful extraction
+        const isStreamingError = error instanceof Error && error.message.includes('Controller is already closed');
+        
+        if (isStreamingError) {
+          console.warn('⚠️ [EXTRACT-STREAM] Stream closed by client after successful extraction');
+        } else {
+          console.error('❌ [EXTRACT-STREAM] Extraction failed:', error);
+          console.error('❌ [EXTRACT-STREAM] Error details:', {
+            message: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined,
+            url,
+            location
+          });
+          
+          // Only mark job as failed for actual extraction errors, not streaming errors
+          if (jobId) {
+            try {
+              await db.update(extractionJobs)
+                .set({
+                  status: 'failed',
+                  currentStep: 'error',
+                  message: 'Extraction failed',
+                  errorMessage: error instanceof Error ? error.message : 'Unknown error',
+                  completedAt: new Date(),
+                  updatedAt: new Date()
+                })
+                .where(eq(extractionJobs.id, jobId));
+              console.log('❌ [EXTRACT-STREAM] Job marked as failed in database');
+            } catch (dbError) {
+              console.warn('⚠️ [EXTRACT-STREAM] Failed to mark job as failed:', dbError);
+            }
+          }
+        }
+        
+        // Only send error response for actual extraction failures, not streaming errors
+        if (!isStreamingError) {
+          const errorData = JSON.stringify({ 
+            error: 'Extraction failed', 
+            message: error instanceof Error ? error.message : 'Unknown error' 
+          });
+          
+          try {
+            if (controller.desiredSize !== null) {
+              controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
+            }
+          } catch (streamError) {
+            console.warn('⚠️ [EXTRACT-STREAM] Could not send error response, stream closed');
+          }
+        }
       } finally {
         // Remove URL from processing set
         console.log('🧹 [EXTRACT-STREAM] Cleaning up - removing URL from processing set:', url);
         processingUrls.delete(url);
         console.log('🧹 [EXTRACT-STREAM] Processing URLs after cleanup:', Array.from(processingUrls));
         console.log('🔚 [EXTRACT-STREAM] Closing stream for:', url);
-        controller.close();
+        
+        try {
+          if (controller.desiredSize !== null) {
+            controller.close();
+          }
+        } catch (closeError) {
+          console.warn('⚠️ [EXTRACT-STREAM] Stream already closed');
+        }
       }
     }
   });
