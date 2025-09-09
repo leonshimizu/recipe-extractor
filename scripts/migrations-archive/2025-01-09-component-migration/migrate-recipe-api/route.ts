@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       console.log('📄 [MIGRATE-RECIPE] Using provided recipe data:', existingRecipe.extracted.title);
     } else {
       // Fetch the existing recipe from database
-      const [dbRecipe] = await db.select().from(recipes).where(eq(recipes.id, recipeId));
+      const [dbRecipe] = await db.select().from(recipes).where(eq(recipes.id, recipeId!));
       
       if (!dbRecipe) {
         return Response.json({ error: 'Recipe not found' }, { status: 404 });
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
     // If no raw text, reconstruct from existing extracted data (with sanitization)
     if (!existingRecipe.rawText && existingRecipe.extracted) {
       rawContent += `INGREDIENTS:\n`;
-      existingRecipe.extracted.ingredients?.forEach(ing => {
+      existingRecipe.extracted.ingredients?.forEach((ing: any) => {
         const quantity = ing.quantity ? `${ing.quantity} ` : '';
         const unit = ing.unit ? `${ing.unit} ` : '';
         const sanitizedName = ing.name
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
       });
       
       rawContent += `\nSTEPS:\n`;
-      existingRecipe.extracted.steps?.forEach((step, i) => {
+      existingRecipe.extracted.steps?.forEach((step: any, i: number) => {
         const sanitizedStep = step
           .replace(/…/g, '...')
           .replace(/[""]/g, '"')
@@ -167,7 +167,7 @@ export async function POST(req: NextRequest) {
               media: existingRecipe.extracted.media || { thumbnail: null }
             }
           })
-          .where(eq(recipes.id, recipeId));
+          .where(eq(recipes.id, recipeId!));
         
         console.log('💾 [MIGRATE-RECIPE] Database updated successfully');
       }

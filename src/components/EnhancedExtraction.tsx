@@ -30,8 +30,19 @@ export default function EnhancedExtraction({ url, location = 'Guam', onComplete,
   const [currentMessage, setCurrentMessage] = useState('Initializing...');
   const [isComplete, setIsComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [estimatedDuration, setEstimatedDuration] = useState(30);
   const router = useRouter();
   const abortControllerRef = useRef<AbortController | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const hasStartedRef = useRef(false);
+  
+  // Debug: Component render state
+  // console.log('🎬 [ENHANCED-EXTRACTION] Component rendered with timer state:', {
+  //   elapsedTime,
+  //   estimatedDuration,
+  //   hasTimer: !!timerRef.current
+  // });
 
   const [steps, setSteps] = useState<ExtractionStep[]>([
     {
@@ -79,6 +90,18 @@ export default function EnhancedExtraction({ url, location = 'Guam', onComplete,
     try {
       abortControllerRef.current = new AbortController();
       
+      // Start the timer immediately
+      const startTime = Date.now();
+      // console.log('⏰ [ENHANCED-EXTRACTION] Starting timer at:', new Date(startTime).toISOString());
+      timerRef.current = setInterval(() => {
+        const elapsed = Math.round((Date.now() - startTime) / 1000);
+        // Only log every 30 seconds to reduce noise (for debugging long extractions)
+        if (elapsed % 30 === 0 && elapsed > 0) {
+          console.log('⏰ [ENHANCED-EXTRACTION] Timer update - Elapsed:', elapsed, 'Estimated:', estimatedDuration);
+        }
+        setElapsedTime(elapsed);
+      }, 1000);
+      
       const response = await fetch('/api/extract-stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -86,8 +109,8 @@ export default function EnhancedExtraction({ url, location = 'Guam', onComplete,
         signal: abortControllerRef.current.signal
       });
       
-      console.log('📡 [ENHANCED-EXTRACTION] Response status:', response.status);
-      console.log('📡 [ENHANCED-EXTRACTION] Response headers:', Object.fromEntries(response.headers.entries()));
+      // console.log('📡 [ENHANCED-EXTRACTION] Response status:', response.status);
+      // console.log('📡 [ENHANCED-EXTRACTION] Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         if (response.status === 409) {
@@ -102,7 +125,7 @@ export default function EnhancedExtraction({ url, location = 'Guam', onComplete,
         throw new Error('No response stream');
       }
 
-      console.log('📖 [ENHANCED-EXTRACTION] Starting to read stream...');
+      // console.log('📖 [ENHANCED-EXTRACTION] Starting to read stream...');
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
 
@@ -115,14 +138,14 @@ export default function EnhancedExtraction({ url, location = 'Guam', onComplete,
         }
 
         const chunk = decoder.decode(value);
-        console.log('📖 [ENHANCED-EXTRACTION] Received chunk:', chunk);
+        // console.log('📖 [ENHANCED-EXTRACTION] Received chunk:', chunk);
         const lines = chunk.split('\n');
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6));
-              console.log('📖 [ENHANCED-EXTRACTION] Parsed data:', data);
+              // console.log('📖 [ENHANCED-EXTRACTION] Parsed data:', data);
               
               if (data.error) {
                 console.error('❌ [ENHANCED-EXTRACTION] Received error:', data);
@@ -154,18 +177,24 @@ export default function EnhancedExtraction({ url, location = 'Guam', onComplete,
 
               // Update progress
               if (data.progress !== undefined) {
-                console.log('📊 [ENHANCED-EXTRACTION] Progress update:', data.progress);
+                // console.log('📊 [ENHANCED-EXTRACTION] Progress update:', data.progress);
                 setProgress(data.progress);
+              }
+              
+              // Update timing information
+              if (data.estimatedDuration !== undefined) {
+                // console.log('⏰ [ENHANCED-EXTRACTION] Received estimated duration:', data.estimatedDuration);
+                setEstimatedDuration(data.estimatedDuration);
               }
 
               if (data.message) {
-                console.log('💬 [ENHANCED-EXTRACTION] Message update:', data.message);
+                // console.log('💬 [ENHANCED-EXTRACTION] Message update:', data.message);
                 setCurrentMessage(data.message);
               }
 
               // Update step status
               if (data.step) {
-                console.log('👣 [ENHANCED-EXTRACTION] Step update:', data.step, 'message:', data.message);
+                // console.log('👣 [ENHANCED-EXTRACTION] Step update:', data.step, 'message:', data.message);
                 // Mark previous steps as complete
                 const stepOrder = ['metadata', 'content', 'transcription', 'ai', 'saving'];
                 const currentIndex = stepOrder.indexOf(data.step);
@@ -188,6 +217,12 @@ export default function EnhancedExtraction({ url, location = 'Guam', onComplete,
       }
 
     } catch (err) {
+      // Don't show error for aborted requests (React Strict Mode cleanup)
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.log('🔄 [ENHANCED-EXTRACTION] Request aborted (likely React Strict Mode cleanup)');
+        return;
+      }
+      
       console.error('❌ [ENHANCED-EXTRACTION] Extraction error:', err);
       console.error('❌ [ENHANCED-EXTRACTION] Error details:', {
         message: err instanceof Error ? err.message : 'Unknown error occurred',
@@ -216,14 +251,52 @@ export default function EnhancedExtraction({ url, location = 'Guam', onComplete,
     }
   };
 
+  // Reset hasStarted flag when URL changes
+  useEffect(() => {
+    hasStartedRef.current = false;
+    // console.log('🔄 [ENHANCED-EXTRACTION] Reset hasStarted flag for new URL:', url);
+  }, [url]);
+
   // Start extraction on mount (with guard against double execution)
   useEffect(() => {
-    if (url && !isComplete && !error && progress === 0) {
-      console.log('🎬 [ENHANCED-EXTRACTION] Starting extraction (guarded)');
-      startExtraction();
+    if (url && !isComplete && !error && progress === 0 && !hasStartedRef.current) {
+      // console.log('🎬 [ENHANCED-EXTRACTION] Starting extraction (guarded)');
+      
+      // Add a small delay to prevent React Strict Mode double execution
+      const timeoutId = setTimeout(() => {
+        if (!isComplete && !error && !hasStartedRef.current) {
+          hasStartedRef.current = true; // Set flag only when actually starting
+          console.log('🚀 [ENHANCED-EXTRACTION] Starting extraction for:', url);
+          startExtraction();
+        }
+      }, 100);
+      
+      return () => {
+        clearTimeout(timeoutId);
+      };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, isComplete, error, progress]);
+
+  // Cleanup timer on unmount or completion
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, []);
+
+  // Stop timer when complete or error
+  useEffect(() => {
+    if ((isComplete || error) && timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, [isComplete, error]);
 
   const getStepIcon = (step: ExtractionStep) => {
     if (step.status === 'complete') {
@@ -254,6 +327,17 @@ export default function EnhancedExtraction({ url, location = 'Guam', onComplete,
             </div>
             
             <Progress value={progress} className="h-2" />
+            
+            {/* Timer and Estimation */}
+            <div className="flex items-center justify-between text-xs text-muted-foreground bg-secondary/30 rounded-lg p-3 border">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                <span className="font-medium">Elapsed: {Math.floor(elapsedTime / 60)}:{(elapsedTime % 60).toString().padStart(2, '0')}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">Est. Total: {Math.floor(estimatedDuration / 60)}:{(estimatedDuration % 60).toString().padStart(2, '0')}</span>
+              </div>
+            </div>
             
             <p className="text-sm text-muted-foreground">
               {currentMessage}

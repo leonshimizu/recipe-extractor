@@ -15,6 +15,7 @@ export interface ExtractedContent {
   thumbnail: string;
   captions: string;
   combinedText: string;
+  duration?: number; // in seconds
 }
 
 /**
@@ -30,10 +31,12 @@ export async function extractYouTubeContent(url: string): Promise<ExtractedConte
     const title = info.videoDetails.title || '';
     const description = info.videoDetails.description || '';
     const thumbnail = info.videoDetails.thumbnails?.[0]?.url || '';
+    const duration = parseInt(info.videoDetails.lengthSeconds || '0', 10);
     
     console.log('📊 YouTube extraction results:');
     console.log(`- Title: ${title.substring(0, 100)}...`);
     console.log(`- Description length: ${description.length} chars`);
+    console.log(`- Duration: ${duration} seconds (${Math.round(duration/60)}m)`);
     console.log(`- Thumbnail: ${thumbnail ? 'Found' : 'Not found'}`);
     
     // Try to extract captions if available
@@ -77,7 +80,8 @@ export async function extractYouTubeContent(url: string): Promise<ExtractedConte
       description,
       thumbnail,
       captions,
-      combinedText
+      combinedText,
+      duration
     };
     
   } catch (error) {
@@ -89,7 +93,8 @@ export async function extractYouTubeContent(url: string): Promise<ExtractedConte
       description: '',
       thumbnail: '',
       captions: '',
-      combinedText: ''
+      combinedText: '',
+      duration: 0
     };
   }
 }
@@ -132,7 +137,8 @@ export async function extractTikTokContent(url: string): Promise<ExtractedConten
     description: '',
     thumbnail: '',
     captions: '',
-    combinedText: ''
+    combinedText: '',
+    duration: 0
   };
 }
 
@@ -153,7 +159,8 @@ export async function extractVideoContent(url: string): Promise<ExtractedContent
       description: '',
       thumbnail: '',
       captions: '',
-      combinedText: ''
+      combinedText: '',
+      duration: 0
     };
   }
 }
