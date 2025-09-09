@@ -6,25 +6,25 @@ import { openai } from '@ai-sdk/openai';
 const RecipeComponentSchema = z.object({
   name: z.string().min(1), // e.g., "Meatloaf", "Glaze", "Sauce"
   ingredients: z.array(z.object({
-    quantity: z.string().nullable(),
-    unit: z.string().nullable(),
+    quantity: z.string().nullable().default(null),
+    unit: z.string().nullable().default(null),
     name: z.string(),
-    notes: z.string().nullable().optional(),
-    estimatedCost: z.number().nullable().optional()
-  })),
-  steps: z.array(z.string()),
-  notes: z.string().nullable().optional()
+    notes: z.string().nullable().optional().default(null),
+    estimatedCost: z.number().nullable().optional().default(null)
+  })).min(1),
+  steps: z.array(z.string()).min(1),
+  notes: z.string().nullable().optional().default(null)
 });
 
 export const RecipeSchema = z.object({
   title: z.string().min(1),
   sourceUrl: z.string().url(),
-  servings: z.number().int().nullable(),
+  servings: z.number().int().nullable().default(null),
   times: z.object({ 
-    prep: z.string().nullable(), 
-    cook: z.string().nullable(), 
-    total: z.string().nullable() 
-  }),
+    prep: z.string().nullable().default(null), 
+    cook: z.string().nullable().default(null), 
+    total: z.string().nullable().default(null)
+  }).default({ prep: null, cook: null, total: null }),
   // New component-based structure
   components: z.array(RecipeComponentSchema).min(1),
   // Legacy fields for backward compatibility (will be auto-populated from components)
@@ -34,32 +34,67 @@ export const RecipeSchema = z.object({
     name: z.string(),
     notes: z.string().nullable().optional(),
     estimatedCost: z.number().nullable().optional()
-  })).optional(),
-  steps: z.array(z.string()).optional(),
+  })).optional().default([]),
+  steps: z.array(z.string()).optional().default([]),
   equipment: z.array(z.string()).nullable().default([]),
-  notes: z.string().nullable().optional(), // Made optional
+  notes: z.string().nullable().optional().default(null), // Made optional
   tags: z.array(z.string()).default([]),
-  totalEstimatedCost: z.number().nullable(),
+  totalEstimatedCost: z.number().nullable().default(null),
   costLocation: z.string(),
   nutrition: z.object({
     perServing: z.object({
-      calories: z.number().nullable(),
-      protein: z.number().nullable(), // grams
-      carbs: z.number().nullable(), // grams
-      fat: z.number().nullable(), // grams
-      fiber: z.number().nullable(), // grams
-      sugar: z.number().nullable(), // grams
-      sodium: z.number().nullable() // milligrams
+      calories: z.number().nullable().default(null),
+      protein: z.number().nullable().default(null), // grams
+      carbs: z.number().nullable().default(null), // grams
+      fat: z.number().nullable().default(null), // grams
+      fiber: z.number().nullable().default(null), // grams
+      sugar: z.number().nullable().default(null), // grams
+      sodium: z.number().nullable().default(null) // milligrams
+    }).default({
+      calories: null,
+      protein: null,
+      carbs: null,
+      fat: null,
+      fiber: null,
+      sugar: null,
+      sodium: null
     }),
     total: z.object({
-      calories: z.number().nullable(),
-      protein: z.number().nullable(),
-      carbs: z.number().nullable(),
-      fat: z.number().nullable(),
-      fiber: z.number().nullable(),
-      sugar: z.number().nullable(),
-      sodium: z.number().nullable()
+      calories: z.number().nullable().default(null),
+      protein: z.number().nullable().default(null),
+      carbs: z.number().nullable().default(null),
+      fat: z.number().nullable().default(null),
+      fiber: z.number().nullable().default(null),
+      sugar: z.number().nullable().default(null),
+      sodium: z.number().nullable().default(null)
+    }).default({
+      calories: null,
+      protein: null,
+      carbs: null,
+      fat: null,
+      fiber: null,
+      sugar: null,
+      sodium: null
     })
+  }).default({
+    perServing: {
+      calories: null,
+      protein: null,
+      carbs: null,
+      fat: null,
+      fiber: null,
+      sugar: null,
+      sodium: null
+    },
+    total: {
+      calories: null,
+      protein: null,
+      carbs: null,
+      fat: null,
+      fiber: null,
+      sugar: null,
+      sodium: null
+    }
   })
 });
 
@@ -183,36 +218,63 @@ EXTRACTION RULES:
   console.log('🤖 [LLM] Calling OpenAI with gpt-4o-mini...');
   console.log('🤖 [LLM] Prompt length:', promptText.length);
   
-  const { object } = await generateObject({
-    model: openai('gpt-4o-mini'),
-    schema: RecipeSchema,
-    prompt: promptText,
-  });
+  try {
+    const { object } = await generateObject({
+      model: openai('gpt-4o-mini'),
+      schema: RecipeSchema,
+      prompt: promptText,
+    });
+    
+    console.log('🤖 [LLM] Raw object received from OpenAI:', JSON.stringify(object, null, 2));
+    
+    // Validate the object manually to provide better error messages
+    const validationResult = RecipeSchema.safeParse(object);
+    if (!validationResult.success) {
+      console.error('❌ [LLM] Schema validation failed:', validationResult.error);
+      console.error('❌ [LLM] Failed object:', JSON.stringify(object, null, 2));
+      throw new Error(`Schema validation failed: ${validationResult.error.message}`);
+    }
+    
+    const validatedObject = validationResult.data;
   
-  // Auto-populate legacy fields from components for backward compatibility
-  const allIngredients = object.components.flatMap(component => component.ingredients);
-  const allSteps = object.components.flatMap((component) => {
-    const componentSteps = component.steps.map(step => 
-      object.components.length > 1 ? `${component.name}: ${step}` : step
-    );
-    return componentSteps;
-  });
-  
-  const finalObject = {
-    ...object,
-    ingredients: allIngredients,
-    steps: allSteps
-  };
-  
-  console.log('🤖 [LLM] OpenAI response received:', {
-    title: finalObject.title,
-    componentsCount: finalObject.components?.length || 0,
-    ingredientsCount: finalObject.ingredients?.length || 0,
-    stepsCount: finalObject.steps?.length || 0,
-    servings: finalObject.servings,
-    hasTimes: !!(finalObject.times?.prep || finalObject.times?.cook || finalObject.times?.total),
-    totalCost: finalObject.totalEstimatedCost
-  });
-  
-  return finalObject;
+    // Auto-populate legacy fields from components for backward compatibility
+    const allIngredients = validatedObject.components.flatMap(component => component.ingredients);
+    const allSteps = validatedObject.components.flatMap((component) => {
+      const componentSteps = component.steps.map(step => 
+        validatedObject.components.length > 1 ? `${component.name}: ${step}` : step
+      );
+      return componentSteps;
+    });
+    
+    const finalObject = {
+      ...validatedObject,
+      ingredients: allIngredients,
+      steps: allSteps
+    };
+    
+    console.log('🤖 [LLM] OpenAI response received:', {
+      title: finalObject.title,
+      componentsCount: finalObject.components?.length || 0,
+      ingredientsCount: finalObject.ingredients?.length || 0,
+      stepsCount: finalObject.steps?.length || 0,
+      servings: finalObject.servings,
+      hasTimes: !!(finalObject.times?.prep || finalObject.times?.cook || finalObject.times?.total),
+      totalCost: finalObject.totalEstimatedCost
+    });
+    
+    return finalObject;
+    
+  } catch (error) {
+    console.error('❌ [LLM] Error during recipe extraction:', error);
+    console.error('❌ [LLM] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      sourceUrl,
+      location,
+      rawContentLength: raw.length
+    });
+    
+    // Re-throw the error to be handled by the calling function
+    throw error;
+  }
 }
