@@ -1,15 +1,17 @@
-import { Suspense } from 'react';
-import HistoryData from '@/components/HistoryData';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// Force dynamic rendering to prevent caching issues
-export const dynamic = 'force-dynamic';
-
-// Skeleton for history data
-function HistoryDataSkeleton() {
+export default function HistoryLoading() {
   return (
-    <>
+    <div className="space-y-8">
+      {/* Header Skeleton */}
+      <div className="flex items-center justify-between">
+        <div>
+          <Skeleton className="h-9 w-48 mb-2" />
+          <Skeleton className="h-5 w-32" />
+        </div>
+      </div>
+
       {/* Search and Filters Skeleton */}
       <div className="space-y-4">
         <div className="flex gap-3">
@@ -43,28 +45,6 @@ function HistoryDataSkeleton() {
           </Card>
         ))}
       </div>
-    </>
-  );
-}
-
-interface HistoryPageProps {
-  searchParams: Promise<{
-    page?: string;
-    search?: string;
-    tags?: string;
-    source?: string;
-  }>;
-}
-
-export default async function HistoryPage({ searchParams }: HistoryPageProps) {
-  const params = await searchParams;
-  
-  return (
-    <div className="space-y-8">
-      {/* Header and content now handled by FastHistoryClient */}
-      <Suspense fallback={<HistoryDataSkeleton />}>
-        <HistoryData searchParams={params} />
-      </Suspense>
     </div>
   );
 }

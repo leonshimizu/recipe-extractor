@@ -1,61 +1,60 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import './globals.css';
+import type { Metadata, Viewport } from 'next';
+import { Inter } from 'next/font/google';
+import { ThemeProvider } from '@/components/providers/theme-provider';
+import { PWAProvider } from '@/components/providers/pwa-provider';
+import { MobileNav } from '@/components/layout/mobile-nav';
+import { DesktopSidebar } from '@/components/layout/desktop-sidebar';
+import { Toaster } from '@/components/ui/sonner';
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
-import Header from "@/components/Header";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: "Recipe Extractor",
-  description: "Transform your favorite TikTok cooking videos into detailed recipes with AI",
-  keywords: ["recipe", "extractor", "tiktok", "cooking", "AI", "food"],
-  authors: [{ name: "Recipe Extractor" }],
-  creator: "Recipe Extractor",
-  publisher: "Recipe Extractor",
-  formatDetection: {
-    email: false,
-    address: false,
-    telephone: false,
-  },
-  icons: {
-    icon: '/favicon.ico',
-    apple: '/icons/icon-192.png',
-  },
+  title: '🍳 Recipe Extractor',
+  description: 'Extract structured recipes from video URLs',
+  manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'Recipe Extractor',
   },
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/icons/icon-192.png',
   },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: '#f97316',
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className}>
         <ServiceWorkerRegister />
-        <Header />
-        {children}
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <PWAProvider>
+            <div className="min-h-screen bg-background">
+              <DesktopSidebar />
+              <main className="pb-16 md:pb-0 md:pl-64">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                  {children}
+                </div>
+              </main>
+              <MobileNav />
+            </div>
+            <Toaster />
+          </PWAProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

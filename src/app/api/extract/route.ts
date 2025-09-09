@@ -13,22 +13,33 @@ dotenv.config({ path: '.env.local', override: true });
 
 export const runtime = 'nodejs'; // keep it simple for now
 
-type Body = { url: string; notes?: string; location?: string };
+type Body = { url: string; notes?: string; location?: string; quickCheck?: boolean };
 
 export async function POST(req: NextRequest) {
   try {
-    const { url, notes = '', location = 'Guam' } = (await req.json()) as Body;
+    const { url, notes = '', location = 'Guam', quickCheck = false } = (await req.json()) as Body;
     if (!url) return new Response('Missing url', { status: 400 });
 
-    // Check if we already have this URL
-    const existingRecipe = await db.select().from(recipes).where(eq(recipes.sourceUrl, url)).limit(1);
+    // Fast check for existing recipe (optimized query)
+    const existingRecipe = await db
+      .select({ id: recipes.id, extracted: recipes.extracted })
+      .from(recipes)
+      .where(eq(recipes.sourceUrl, url))
+      .limit(1);
     
     if (existingRecipe.length > 0) {
-      // Return existing recipe instead of creating a new one
+      // Return existing recipe immediately
       return Response.json({ 
         id: existingRecipe[0].id, 
         recipe: existingRecipe[0].extracted,
         isExisting: true 
+      });
+    }
+
+    // If this is just a quick check and no existing recipe found, return not existing
+    if (quickCheck) {
+      return Response.json({
+        isExisting: false
       });
     }
 

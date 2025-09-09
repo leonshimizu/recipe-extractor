@@ -7,7 +7,7 @@ export type RecipeJSON = {
   times: { prep: string | null; cook: string | null; total: string | null };
   ingredients: { quantity: string | null; unit: string | null; name: string; notes?: string | null; estimatedCost?: number | null }[];
   steps: string[];
-  equipment: string[];
+  equipment: string[] | null;
   notes: string | null;
   tags: string[];
   media: { thumbnail: string | null };
