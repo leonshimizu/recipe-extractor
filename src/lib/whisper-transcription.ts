@@ -160,11 +160,19 @@ async function downloadAudio(videoUrl: string): Promise<{
     }
     
   } catch (error) {
-    console.error('❌ Audio download failed:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown download error';
+    
+    // Check if this is the common Vercel/serverless issue
+    if (errorMessage.includes('yt-dlp: command not found')) {
+      console.warn('⚠️ yt-dlp not available in serverless environment - this is expected on Vercel');
+      console.warn('⚠️ Extraction will continue without audio transcription using video metadata only');
+    } else {
+      console.error('❌ Audio download failed:', error);
+    }
     
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown download error'
+      error: errorMessage
     };
   }
 }

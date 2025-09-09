@@ -267,12 +267,19 @@ export async function POST(req: NextRequest) {
               }
               return result;
             }).catch(error => {
-              console.warn('⚠️ [EXTRACT-STREAM] Whisper transcription failed:', error);
+              const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+              if (errorMessage.includes('yt-dlp: command not found')) {
+                console.warn('⚠️ [EXTRACT-STREAM] Whisper transcription unavailable: yt-dlp not found in serverless environment');
+                console.warn('⚠️ [EXTRACT-STREAM] This is expected on Vercel - extraction will continue with metadata only');
+              } else {
+                console.warn('⚠️ [EXTRACT-STREAM] Whisper transcription failed:', error);
+              }
               return null;
             })
           );
         } else {
           console.log('🎤 [EXTRACT-STREAM] Whisper not available, skipping transcription');
+          await sendUpdate('transcription', 70, 'Audio transcription skipped (not available in serverless)');
         }
 
         // Wait for all parallel operations
