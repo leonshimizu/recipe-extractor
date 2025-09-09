@@ -5,6 +5,7 @@ import { URLInput } from '@/components/ui/url-input';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import LocationSelect from '@/components/ui/location-select';
 import EnhancedExtraction from '@/components/EnhancedExtraction';
+import { useBackgroundJobs } from '@/hooks/useBackgroundJobs';
 import { Settings, AlertCircle, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -46,6 +47,7 @@ export default function HomeClient({ recentRecipes }: HomeClientProps) {
   const [currentUrl, setCurrentUrl] = useState<string>(''); // Track the current URL being processed
   const [location, setLocation] = useState<string>('Guam'); // Default to Guam as shown in screenshots
   const router = useRouter();
+  const { addRecentUrl, activeJobs } = useBackgroundJobs();
 
 
   const handleExtract = async (url: string) => {
@@ -86,6 +88,9 @@ export default function HomeClient({ recentRecipes }: HomeClientProps) {
       console.log('🔄 [HOME-CLIENT] Proceeding with full extraction');
     }
 
+    // Add URL to recent extractions for background tracking
+    addRecentUrl(url);
+    
     // Start enhanced extraction with streaming
     setCurrentUrl(url); // Set the current URL immediately
   };
@@ -135,6 +140,28 @@ export default function HomeClient({ recentRecipes }: HomeClientProps) {
             />
           </div>
         </div>
+
+        {/* Background Jobs Indicator */}
+        {activeJobs.length > 0 && extractState === 'idle' && (
+          <div className="mb-4">
+            <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
+              <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <AlertDescription className="text-blue-800 dark:text-blue-200">
+                {activeJobs.filter(job => job.status.status === 'processing').length > 0 ? (
+                  <>
+                    🔄 {activeJobs.filter(job => job.status.status === 'processing').length} recipe(s) extracting in background...
+                    <br />
+                    <span className="text-sm opacity-75">You can navigate away - we&apos;ll notify you when ready!</span>
+                  </>
+                ) : (
+                  <>
+                    ✅ Background extractions completed! Check your notifications.
+                  </>
+                )}
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
 
         {/* States */}
         <div className="mt-6">

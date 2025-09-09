@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, jsonb, varchar, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, jsonb, varchar, boolean, integer } from 'drizzle-orm/pg-core';
 
 export type RecipeComponent = {
   name: string;
@@ -56,4 +56,21 @@ export const recipes = pgTable('recipes', {
   extractionQuality: varchar('extraction_quality', { length: 16 }), // high|medium|low
   hasAudioTranscript: boolean('has_audio_transcript').default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
+export const extractionJobs = pgTable('extraction_jobs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  url: text('url').notNull().unique(),
+  location: text('location').notNull().default('Guam'),
+  notes: text('notes').notNull().default(''),
+  status: varchar('status', { length: 16 }).notNull().default('processing'), // processing|completed|failed
+  progress: integer('progress').notNull().default(0), // 0-100
+  currentStep: varchar('current_step', { length: 32 }).notNull().default('initializing'),
+  message: text('message').notNull().default('Starting extraction...'),
+  estimatedDuration: integer('estimated_duration').notNull().default(60), // seconds
+  recipeId: uuid('recipe_id').references(() => recipes.id),
+  errorMessage: text('error_message'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
 });

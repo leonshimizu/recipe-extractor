@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/db';
-import { recipes, type RecipeJSON } from '@/db/schema';
+import { recipes, extractionJobs, type RecipeJSON } from '@/db/schema';
 import { detectSource, fetchInstagramOEmbed, fetchTikTokOEmbed, fetchYouTubeOEmbed } from '@/lib/sources';
 import { extractRecipe } from '@/lib/llm';
 import { extractVideoContent } from '@/lib/video-extractor';
@@ -18,7 +18,7 @@ function estimateExtractionTime(
   videoDuration: number, // in seconds
   contentLength: number, // text length
   hasWhisper: boolean,
-  source: string
+  source: string // eslint-disable-line @typescript-eslint/no-unused-vars
 ): number {
   // Simple base estimate: most extractions take 60-90 seconds regardless of complexity
   // This is much more accurate than trying to calculate based on all factors
@@ -80,22 +80,63 @@ export async function POST(req: NextRequest) {
   }
 
   const encoder = new TextEncoder();
+  let jobId: string | null = null;
+  
   const stream = new ReadableStream({
     async start(controller) {
       const startTime = Date.now();
       let estimatedDuration = 30; // Default estimate in seconds
       
-      const sendUpdate = (step: string, progress: number, message: string, estimatedTime?: number) => {
+      // Create extraction job in database
+      try {
+        const [newJob] = await db.insert(extractionJobs).values({
+          url,
+          location,
+          notes,
+          status: 'processing',
+          progress: 0,
+          currentStep: 'initializing',
+          message: 'Starting extraction...',
+          estimatedDuration: estimatedDuration
+        }).returning();
+        
+        jobId = newJob.id;
+        console.log('💾 [EXTRACT-STREAM] Created extraction job:', jobId);
+      } catch (error) {
+        console.error('❌ [EXTRACT-STREAM] Failed to create job:', error);
+        // Continue without job persistence if DB fails
+      }
+      
+      const sendUpdate = async (step: string, progress: number, message: string, estimatedTime?: number) => {
         try {
           const elapsedTime = Math.round((Date.now() - startTime) / 1000);
+          const currentEstimate = estimatedTime || estimatedDuration;
+          
           const data = JSON.stringify({ 
             step, 
             progress, 
             message,
             elapsedTime,
-            estimatedDuration: estimatedTime || estimatedDuration
+            estimatedDuration: currentEstimate
           });
-          console.log(`📡 [EXTRACT-STREAM] Sending update: ${step} (${progress}%) - ${message} [${elapsedTime}s elapsed, ~${estimatedTime || estimatedDuration}s total]`);
+          console.log(`📡 [EXTRACT-STREAM] Sending update: ${step} (${progress}%) - ${message} [${elapsedTime}s elapsed, ~${currentEstimate}s total]`);
+          
+          // Update database job status
+          if (jobId) {
+            try {
+              await db.update(extractionJobs)
+                .set({
+                  progress,
+                  currentStep: step,
+                  message,
+                  estimatedDuration: currentEstimate,
+                  updatedAt: new Date()
+                })
+                .where(eq(extractionJobs.id, jobId));
+            } catch (dbError) {
+              console.warn('⚠️ [EXTRACT-STREAM] Failed to update job in DB:', dbError);
+            }
+          }
           
           // Check if controller is still open before enqueueing
           if (controller.desiredSize !== null) {
@@ -110,7 +151,7 @@ export async function POST(req: NextRequest) {
 
       try {
         console.log('🎬 [EXTRACT-STREAM] Starting extraction process...');
-        sendUpdate('start', 0, 'Starting extraction...');
+        await sendUpdate('start', 0, 'Starting extraction...');
         
         const source = detectSource(url);
         console.log('🔍 [EXTRACT-STREAM] Detected source:', source);
@@ -127,11 +168,11 @@ export async function POST(req: NextRequest) {
         const initialEstimate = estimateExtractionTime(0, 0, isWhisperAvailable(), source);
         estimatedDuration = initialEstimate;
         console.log('⏰ [EXTRACT-STREAM] Initial time estimate:', initialEstimate, 'seconds for', source);
-        sendUpdate('start', 5, 'Initializing extraction...', initialEstimate);
+        await sendUpdate('start', 5, 'Initializing extraction...', initialEstimate);
 
         // Step 1: Get basic metadata (fast)
         console.log('📋 [EXTRACT-STREAM] Fetching metadata for source:', source);
-        sendUpdate('metadata', 10, 'Fetching video metadata...');
+        await sendUpdate('metadata', 10, 'Fetching video metadata...');
         
         try {
           if (source === 'youtube') {
@@ -318,7 +359,27 @@ export async function POST(req: NextRequest) {
         const recipeId = inserted[0].id;
         console.log('✅ [EXTRACT-STREAM] Recipe saved successfully with ID:', recipeId);
 
-        sendUpdate('complete', 100, 'Recipe extracted successfully!');
+        // Mark job as completed in database
+        if (jobId) {
+          try {
+            await db.update(extractionJobs)
+              .set({
+                status: 'completed',
+                progress: 100,
+                currentStep: 'complete',
+                message: 'Recipe extracted successfully!',
+                recipeId: recipeId,
+                completedAt: new Date(),
+                updatedAt: new Date()
+              })
+              .where(eq(extractionJobs.id, jobId));
+            console.log('✅ [EXTRACT-STREAM] Job marked as completed in database');
+          } catch (dbError) {
+            console.warn('⚠️ [EXTRACT-STREAM] Failed to mark job as completed:', dbError);
+          }
+        }
+
+        await sendUpdate('complete', 100, 'Recipe extracted successfully!');
         
         // Send final result
         console.log('📤 [EXTRACT-STREAM] Sending final success response...');
@@ -337,6 +398,26 @@ export async function POST(req: NextRequest) {
           url,
           location
         });
+        
+        // Mark job as failed in database
+        if (jobId) {
+          try {
+            await db.update(extractionJobs)
+              .set({
+                status: 'failed',
+                currentStep: 'error',
+                message: 'Extraction failed',
+                errorMessage: error instanceof Error ? error.message : 'Unknown error',
+                completedAt: new Date(),
+                updatedAt: new Date()
+              })
+              .where(eq(extractionJobs.id, jobId));
+            console.log('❌ [EXTRACT-STREAM] Job marked as failed in database');
+          } catch (dbError) {
+            console.warn('⚠️ [EXTRACT-STREAM] Failed to mark job as failed:', dbError);
+          }
+        }
+        
         const errorData = JSON.stringify({ 
           error: 'Extraction failed', 
           message: error instanceof Error ? error.message : 'Unknown error' 
