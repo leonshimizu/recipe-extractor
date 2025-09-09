@@ -179,30 +179,30 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
         {/* Recipe Components */}
         {r.components && r.components.length > 0 ? (
           <div className="space-y-8 sm:space-y-10">
-            {r.components.map((component, componentIndex) => (
-              <div key={componentIndex} className="space-y-6 sm:space-y-8">
-                {/* Component Header */}
-                {r.components.length > 1 && (
-                  <div className="text-center pt-4 sm:pt-6">
-                    <h2 className="text-xl sm:text-2xl font-bold text-primary mb-3 sm:mb-4">
-                      {component.name}
-                    </h2>
-                    {component.notes && (
-                      <p className="text-sm text-muted-foreground italic">
-                        {component.notes}
-                      </p>
-                    )}
-                  </div>
-                )}
-                
-                {/* Component Content */}
-                <div className="grid lg:grid-cols-2 gap-6 sm:gap-8">
-                  {/* Component Ingredients */}
-                  <Card>
+            {/* All Ingredients Section */}
+            <div className="space-y-6 sm:space-y-8 pt-2 sm:pt-4">
+              <div className="text-center">
+                <h2 className="text-xl sm:text-2xl font-bold text-primary mb-3 sm:mb-4 flex items-center justify-center gap-2 sm:gap-3">
+                  <span className="text-xl sm:text-2xl">🥄</span>
+                  Ingredients
+                </h2>
+              </div>
+              
+              <div className="space-y-6 sm:space-y-8">
+                {r.components.map((component, componentIndex) => (
+                  <Card key={`ingredients-${componentIndex}`}>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 sm:gap-3 text-lg sm:text-xl">
-                        <span className="text-xl sm:text-2xl">🥄</span>
-                        {r.components.length > 1 ? `${component.name} Ingredients` : 'Ingredients'}
+                        {r.components.length > 1 && (
+                          <span className="text-base sm:text-lg font-semibold text-primary">
+                            {component.name}
+                          </span>
+                        )}
+                        {component.notes && (
+                          <span className="text-sm text-muted-foreground italic ml-2">
+                            ({component.notes})
+                          </span>
+                        )}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -252,31 +252,53 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
                       </ul>
                     </CardContent>
                   </Card>
-
-                  {/* Component Instructions */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 sm:gap-3 text-lg sm:text-xl">
-                        <span className="text-xl sm:text-2xl">📝</span>
-                        {r.components.length > 1 ? `${component.name} Instructions` : 'Instructions'}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <ol className="space-y-4 sm:space-y-6">
-                        {component.steps.map((step, i) => (
-                          <li key={i} className="flex items-start">
-                            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-primary text-primary-foreground text-xs sm:text-sm font-medium rounded-full flex items-center justify-center mr-3 sm:mr-4 flex-shrink-0 mt-0.5">
-                              {i + 1}
-                            </div>
-                            <span className="leading-relaxed text-sm sm:text-base">{step}</span>
-                          </li>
-                        ))}
-                      </ol>
-                    </CardContent>
-                  </Card>
-                </div>
+                ))}
               </div>
-            ))}
+            </div>
+
+            {/* All Instructions Section */}
+            <div className="space-y-6 sm:space-y-8">
+              <div className="text-center">
+                <h2 className="text-xl sm:text-2xl font-bold text-primary mb-3 sm:mb-4 flex items-center justify-center gap-2 sm:gap-3">
+                  <span className="text-xl sm:text-2xl">📝</span>
+                  Instructions
+                </h2>
+              </div>
+              
+              <div className="space-y-6 sm:space-y-8">
+                {(() => {
+                  let stepCounter = 1;
+                  return r.components.map((component, componentIndex) => (
+                    <Card key={`instructions-${componentIndex}`}>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 sm:gap-3 text-lg sm:text-xl">
+                          {r.components.length > 1 && (
+                            <span className="text-base sm:text-lg font-semibold text-primary">
+                              {component.name}
+                            </span>
+                          )}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ol className="space-y-4 sm:space-y-6">
+                          {component.steps.map((step, i) => {
+                            const currentStep = stepCounter++;
+                            return (
+                              <li key={i} className="flex items-start">
+                                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-primary text-primary-foreground text-xs sm:text-sm font-medium rounded-full flex items-center justify-center mr-3 sm:mr-4 flex-shrink-0 mt-0.5">
+                                  {currentStep}
+                                </div>
+                                <span className="leading-relaxed text-sm sm:text-base">{step}</span>
+                              </li>
+                            );
+                          })}
+                        </ol>
+                      </CardContent>
+                    </Card>
+                  ));
+                })()}
+              </div>
+            </div>
           </div>
         ) : (
           /* Fallback to legacy structure for older recipes */

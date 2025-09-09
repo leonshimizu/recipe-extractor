@@ -190,6 +190,55 @@ git push
 - **Private/Restricted Videos**: Cannot access audio or metadata
 - **Very Short Videos**: May not contain enough recipe information
 
+## 🛠 Development
+
+### Database Management
+
+```bash
+# Generate new migration
+npm run db:generate
+
+# Push schema changes
+npm run db:push
+
+# Setup database (first time)
+npm run setup
+```
+
+### Recipe Migrations
+
+The app includes a robust migration system for updating existing recipes when the schema changes.
+
+#### Quick Migration Guide
+
+```bash
+# 1. Always backup first!
+node scripts/backup-database.js
+
+# 2. Test migration (dry run)
+node scripts/migration-templates/migrate-recipes-template.js --dry-run --limit 1
+
+# 3. Run migration
+node scripts/migrate-recipes-YYYY-MM-DD-feature.js
+```
+
+#### Migration System Features
+
+- **🔒 Safe Backups**: Automatic JSON backups before any migration
+- **🧪 Dry Run Testing**: Test migrations without making changes
+- **📊 Progress Tracking**: Detailed logging and progress reports
+- **🔄 Error Recovery**: Graceful handling of failed migrations
+- **📁 Templates**: Reusable templates for future migrations
+
+For detailed migration documentation, see [`scripts/migration-templates/README.md`](scripts/migration-templates/README.md).
+
+#### Recent Migrations
+
+- **2025-01-09**: Component Structure Migration
+  - Migrated 67/88 recipes to multi-component structure
+  - Created 130 recipe components (avg 2 per recipe)
+  - Examples: "Steak + Mashed Potatoes + Sauce" → 3 components
+
 ## 🔍 API Costs
 
 **Estimated costs per recipe extraction:**
