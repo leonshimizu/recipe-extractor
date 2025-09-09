@@ -7,6 +7,8 @@ import { MobileNav } from '@/components/layout/mobile-nav';
 import { DesktopSidebar } from '@/components/layout/desktop-sidebar';
 import { Toaster } from '@/components/ui/sonner';
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -55,6 +57,8 @@ export default function RootLayout({
             <Toaster />
           </PWAProvider>
         </ThemeProvider>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
