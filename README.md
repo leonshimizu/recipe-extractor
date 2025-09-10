@@ -119,6 +119,98 @@ Visit `http://localhost:3000` 🎉
 - **🎤 High Quality**: Full audio transcription available
 - **📝 Basic Quality**: Text-only extraction (Instagram or fallback)
 
+## 🧠 Technology Deep Dive
+
+Ever wondered how we turn a cooking video into a structured recipe? Here's the simple breakdown of the technologies that make it possible:
+
+### 🎤 **OpenAI Whisper API - The "Ears" of the System**
+
+**What it does:** Converts spoken words in videos into text (speech-to-text)
+
+**How it works:**
+1. We extract the audio track from a video (using yt-dlp)
+2. Send the audio file to OpenAI's Whisper API
+3. Whisper analyzes the sound waves and identifies spoken words
+4. Returns a complete transcript of everything said in the video
+
+**Why it's amazing:** Whisper can understand different accents, background noise, and even cooking terminology. It's like having super-human hearing that never misses an ingredient or step!
+
+**Example:** Video says *"Add two tablespoons of olive oil and a pinch of salt"* → Whisper returns `"Add two tablespoons of olive oil and a pinch of salt"`
+
+### 🤖 **OpenAI GPT-4o-mini - The "Brain" of the System**
+
+**What it does:** Takes messy text and turns it into structured recipe data
+
+**How it works:**
+1. We give GPT-4o-mini the transcript + video title + description
+2. We ask it to identify ingredients, steps, timing, and equipment
+3. GPT-4o-mini uses its training on millions of recipes to understand cooking patterns
+4. Returns organized data in a specific format (JSON)
+
+**Why it's powerful:** GPT-4o-mini can infer missing information, estimate costs, calculate nutrition, and even fix common mistakes in the original video.
+
+**Example:** 
+- **Input:** *"So you're gonna want some flour, maybe like 2 cups, and then crack a couple eggs..."*
+- **Output:** `{"ingredients": [{"quantity": "2", "unit": "cups", "name": "flour"}, {"quantity": "2", "unit": "whole", "name": "eggs"}]}`
+
+### 🔧 **Vercel AI SDK - The "Translator" Between AI and Code**
+
+**What it does:** Makes it easy to work with AI APIs and ensures we get reliable, structured responses
+
+**How it works:**
+1. We define a "schema" (like a template) for what a recipe should look like
+2. The AI SDK sends our request to OpenAI with special instructions
+3. It validates the AI's response to make sure it matches our template
+4. If something's wrong, it automatically asks the AI to try again
+
+**Why it's essential:** Without this, the AI might return data in random formats that our app can't understand. It's like having a translator who ensures the AI always "speaks" in the exact format our app expects.
+
+**Example Schema:** "A recipe must have a title (text), ingredients (list), and steps (list)" - the AI SDK ensures we always get exactly this structure.
+
+### 📹 **yt-dlp - The "Video Downloader" Tool**
+
+**What it does:** Downloads videos and audio from YouTube, TikTok, and hundreds of other platforms
+
+**How it works:**
+1. You give it a video URL (like `youtube.com/watch?v=abc123`)
+2. It figures out the platform and finds the actual video files
+3. It can extract just the audio track (which we need for Whisper)
+4. Downloads the audio as an MP3 file to our server
+
+**Why we need it:** Social media platforms don't just give you direct access to video files. yt-dlp knows how to navigate each platform's system to get the actual media files.
+
+**Fun fact:** yt-dlp supports over 1,000 different video platforms! It's like a universal key for video content.
+
+### 🔗 **oEmbed APIs - The "Metadata Collectors"**
+
+**What they do:** Get basic information about videos (title, thumbnail, description) without downloading the whole video
+
+**How they work:**
+1. Each platform (YouTube, TikTok, Instagram) provides an oEmbed endpoint
+2. We send a video URL to their API
+3. They return basic info like title, description, thumbnail image
+4. This happens instantly (no video download needed)
+
+**Why they're useful:** 
+- **Fast**: Get video info in milliseconds
+- **Lightweight**: No need to download large video files just for basic info
+- **Reliable**: Official APIs provided by the platforms themselves
+
+**Example:** Send `tiktok.com/video/123` → Get back `{"title": "Amazing Pasta Recipe!", "thumbnail": "image.jpg", "description": "Easy 15-minute pasta..."}`
+
+### 🔄 **How They All Work Together**
+
+Here's the complete flow when you paste a video URL:
+
+1. **oEmbed APIs** grab the video title, description, and thumbnail (fast)
+2. **yt-dlp** downloads the audio track from the video (slower, but thorough)
+3. **OpenAI Whisper** converts the audio into a complete transcript
+4. **OpenAI GPT-4o-mini** analyzes all the text (title + description + transcript) and structures it into a recipe
+5. **Vercel AI SDK** ensures the AI's response is properly formatted for our app
+6. Our app saves everything to the database and shows you the final recipe!
+
+**The magic:** Each tool does one thing really well, and together they transform a messy cooking video into a perfectly organized recipe! 🎉
+
 ## 📦 Deployment
 
 ### Vercel (Recommended)
@@ -150,27 +242,29 @@ git push
 
 ## 🔧 Tech Stack
 
+*Want to understand how these technologies work? Check out the [🧠 Technology Deep Dive](#-technology-deep-dive) section above!*
+
 ### **Frontend & Framework**
-- **Next.js 15** - React framework with App Router
-- **TypeScript** - Type-safe development
-- **Tailwind CSS** - Utility-first styling
-- **PWA** - Service Worker + Web App Manifest
+- **Next.js 15** - React framework with App Router and server-side rendering
+- **TypeScript** - Type-safe development with compile-time error checking
+- **Tailwind CSS** - Utility-first CSS framework for rapid UI development
+- **PWA** - Progressive Web App with offline support and mobile installation
 
 ### **Backend & Database**
-- **Neon PostgreSQL** - Serverless database
-- **Drizzle ORM** - Type-safe database queries
-- **Next.js API Routes** - Serverless functions
+- **Neon PostgreSQL** - Serverless, auto-scaling PostgreSQL database
+- **Drizzle ORM** - Type-safe database queries with TypeScript integration
+- **Next.js API Routes** - Serverless functions for backend logic
 
-### **AI & Media Processing**
-- **OpenAI GPT-4o-mini** - Recipe extraction and structuring
-- **OpenAI Whisper API** - Audio transcription
-- **Vercel AI SDK** - Structured AI responses with Zod validation
-- **yt-dlp** - Video/audio downloading
-- **oEmbed APIs** - Video metadata extraction
+### **AI & Media Processing** ⭐
+- **OpenAI GPT-4o-mini** - Advanced language model for recipe extraction and structuring
+- **OpenAI Whisper API** - State-of-the-art speech-to-text transcription
+- **Vercel AI SDK** - Structured AI responses with automatic validation
+- **yt-dlp** - Universal video/audio downloader supporting 1000+ platforms
+- **oEmbed APIs** - Official platform APIs for video metadata
 
 ### **External APIs**
-- **TikTok oEmbed** - Video metadata and thumbnails (no token required)
-- **YouTube oEmbed** - Video metadata and thumbnails (no token required)
+- **TikTok oEmbed** - Video metadata and thumbnails (no authentication required)
+- **YouTube oEmbed** - Video metadata and thumbnails (no authentication required)  
 - **Instagram oEmbed** - Basic video information (requires Facebook Developer token)
 
 ## 📱 PWA Installation
