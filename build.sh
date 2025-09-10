@@ -3,12 +3,7 @@
 # Render build script for Recipe Extractor
 echo "🚀 Starting Recipe Extractor build..."
 
-# Install system dependencies
-echo "📦 Installing system dependencies..."
-apt-get update
-apt-get install -y python3 python3-pip ffmpeg
-
-# Install yt-dlp
+# Install yt-dlp (Python and ffmpeg are pre-installed on Render)
 echo "🎵 Installing yt-dlp..."
 pip3 install yt-dlp
 
