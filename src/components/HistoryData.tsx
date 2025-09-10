@@ -58,7 +58,7 @@ export default async function HistoryData({ searchParams }: HistoryDataProps) {
     })
   )].sort();
 
-  // Transform the data to extract nested fields
+  // Transform the data to extract nested fields for comprehensive search
   const transformedRecipes = allRecipesForPage.map(recipe => {
     const extracted = recipe.extracted as {
       title?: string;
@@ -69,6 +69,21 @@ export default async function HistoryData({ searchParams }: HistoryDataProps) {
         name: string;
         quantity: string | null;
         unit: string | null;
+        notes?: string | null;
+      }>;
+      steps?: string[];
+      equipment?: string[];
+      notes?: string;
+      components?: Array<{
+        name: string;
+        ingredients: Array<{
+          name: string;
+          quantity: string | null;
+          unit: string | null;
+          notes?: string | null;
+        }>;
+        steps: string[];
+        notes?: string | null;
       }>;
     };
     
@@ -82,7 +97,12 @@ export default async function HistoryData({ searchParams }: HistoryDataProps) {
         tags: extracted?.tags || [],
         costLocation: extracted?.costLocation || 'Unknown',
         totalEstimatedCost: extracted?.totalEstimatedCost || null,
-        ingredients: extracted?.ingredients || [], // For search functionality
+        // Enhanced search data
+        ingredients: extracted?.ingredients || [],
+        steps: extracted?.steps || [],
+        equipment: extracted?.equipment || [],
+        notes: extracted?.notes || '',
+        components: extracted?.components || [],
       }
     };
   });

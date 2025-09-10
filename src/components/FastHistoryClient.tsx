@@ -24,10 +24,26 @@ interface Recipe {
     tags: string[];
     costLocation: string;
     totalEstimatedCost: number | null;
+    // Enhanced search data
     ingredients?: Array<{
       name: string;
       quantity: string | null;
       unit: string | null;
+      notes?: string | null;
+    }>;
+    steps?: string[];
+    equipment?: string[];
+    notes?: string;
+    components?: Array<{
+      name: string;
+      ingredients: Array<{
+        name: string;
+        quantity: string | null;
+        unit: string | null;
+        notes?: string | null;
+      }>;
+      steps: string[];
+      notes?: string | null;
     }>;
   };
 }
@@ -72,17 +88,46 @@ export default function FastHistoryClient({
   const filteredRecipes = useMemo(() => {
     let filtered = allRecipes;
 
-    // Search filter
+    // Enhanced search filter - searches across ALL recipe content
     if (localSearch.trim()) {
       const searchTerm = localSearch.toLowerCase().trim();
       filtered = filtered.filter(recipe => {
+        // Basic fields
         const title = recipe.extracted.title?.toLowerCase() || '';
         const tags = recipe.extracted.tags?.join(' ').toLowerCase() || '';
-        const ingredients = recipe.extracted.ingredients?.map(ing => ing.name).join(' ').toLowerCase() || '';
+        const notes = recipe.extracted.notes?.toLowerCase() || '';
         
+        // Ingredients (including notes)
+        const ingredients = recipe.extracted.ingredients?.map(ing => 
+          `${ing.name} ${ing.notes || ''}`.toLowerCase()
+        ).join(' ') || '';
+        
+        // Steps/Instructions
+        const steps = recipe.extracted.steps?.join(' ').toLowerCase() || '';
+        
+        // Equipment
+        const equipment = recipe.extracted.equipment?.join(' ').toLowerCase() || '';
+        
+        // Component-based content (for newer recipes)
+        const componentContent = recipe.extracted.components?.map(comp => {
+          const compName = comp.name.toLowerCase();
+          const compIngredients = comp.ingredients.map(ing => 
+            `${ing.name} ${ing.notes || ''}`.toLowerCase()
+          ).join(' ');
+          const compSteps = comp.steps.join(' ').toLowerCase();
+          const compNotes = comp.notes?.toLowerCase() || '';
+          
+          return `${compName} ${compIngredients} ${compSteps} ${compNotes}`;
+        }).join(' ') || '';
+        
+        // Search across all content
         return title.includes(searchTerm) || 
                tags.includes(searchTerm) || 
-               ingredients.includes(searchTerm);
+               ingredients.includes(searchTerm) ||
+               steps.includes(searchTerm) ||
+               equipment.includes(searchTerm) ||
+               notes.includes(searchTerm) ||
+               componentContent.includes(searchTerm);
       });
     }
 
@@ -293,7 +338,7 @@ export default function FastHistoryClient({
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search recipes, ingredients, or tags..."
+          placeholder="Search recipes, ingredients, instructions, equipment, or anything..."
           value={localSearch}
           onChange={(e) => handleSearchChange(e.target.value)}
           className="pl-10"
