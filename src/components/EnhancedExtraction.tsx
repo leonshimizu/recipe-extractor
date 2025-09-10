@@ -223,6 +223,40 @@ export default function EnhancedExtraction({ url, location = 'Guam', onComplete,
         return;
       }
       
+      // Check if this might be a stream disconnection while background processing continues
+      const isStreamDisconnection = err instanceof Error && (
+        err.message.includes('stream') || 
+        err.message.includes('network') ||
+        err.message.includes('fetch') ||
+        err.message.includes('connection') ||
+        err.message.includes('Failed to fetch') ||
+        err.message.includes('NetworkError')
+      );
+      
+      if (isStreamDisconnection) {
+        console.log('🔄 [ENHANCED-EXTRACTION] Stream disconnected, but extraction may continue in background');
+        console.log('📱 [ENHANCED-EXTRACTION] Switching to background processing mode...');
+        
+        // Set a more user-friendly message
+        setCurrentMessage('Processing in background...');
+        setProgress(50); // Show some progress
+        
+        // Update steps to show background processing
+        setSteps(prev => prev.map(step => 
+          step.status === 'active' 
+            ? { ...step, status: 'complete', message: 'Continuing in background...' }
+            : step
+        ));
+        
+        // Don't show error toast - instead show info about background processing
+        toast.info('Extraction continues in background. You\'ll be notified when complete!', {
+          duration: 5000
+        });
+        
+        // Don't call onError - this isn't actually an error
+        return;
+      }
+      
       console.error('❌ [ENHANCED-EXTRACTION] Extraction error:', err);
       console.error('❌ [ENHANCED-EXTRACTION] Error details:', {
         message: err instanceof Error ? err.message : 'Unknown error occurred',

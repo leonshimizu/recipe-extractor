@@ -11,7 +11,7 @@ const RecipeComponentSchema = z.object({
     name: z.string(),
     notes: z.string().nullable().optional().default(null),
     estimatedCost: z.number().nullable().optional().default(null)
-  })).min(1),
+  })),
   steps: z.array(z.string()).min(1),
   notes: z.string().nullable().optional().default(null)
 });
@@ -197,6 +197,7 @@ EXTRACTION RULES:
 - REQUIRED: Set costLocation to exactly: "${location}"
 - REQUIRED: equipment must be an array of strings (e.g., ["air fryer", "mixing bowl"]), NOT objects
 - REQUIRED: quantity must be a string (e.g., "2", "1/2", "1.5"), NOT a number
+- ALLOWED: Components can have empty ingredients arrays (e.g., "Final Assembly", "Baking Instructions") if they only contain cooking steps without new ingredients
 - For servings, ALWAYS try to estimate a reasonable number based on ingredient quantities:
   * Look at total amounts (1 lb pasta typically serves 4-6 people)
   * Consider portion sizes for the type of dish (appetizer vs main course)

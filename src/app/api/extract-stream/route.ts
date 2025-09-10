@@ -91,23 +91,59 @@ export async function POST(req: NextRequest) {
       const startTime = Date.now();
       let estimatedDuration = 30; // Default estimate in seconds
       
-      // Create extraction job in database
+      // Create or update extraction job in database
       try {
-        const [newJob] = await db.insert(extractionJobs).values({
-          url,
-          location,
-          notes,
-          status: 'processing',
-          progress: 0,
-          currentStep: 'initializing',
-          message: 'Starting extraction...',
-          estimatedDuration: estimatedDuration
-        }).returning();
+        // First, check if there's an existing job for this URL
+        const existingJobs = await db.select().from(extractionJobs).where(eq(extractionJobs.url, url));
         
-        jobId = newJob.id;
-        console.log('💾 [EXTRACT-STREAM] Created extraction job:', jobId);
+        if (existingJobs.length > 0) {
+          const existingJob = existingJobs[0];
+          console.log('🔄 [EXTRACT-STREAM] Found existing job:', existingJob.id, 'with status:', existingJob.status);
+          
+          if (existingJob.status === 'processing') {
+            // If already processing, don't create a duplicate
+            console.log('⚠️ [EXTRACT-STREAM] Job already in progress, using existing job');
+            jobId = existingJob.id;
+          } else {
+            // Update existing failed/completed job to restart it
+            console.log('🔄 [EXTRACT-STREAM] Restarting existing job:', existingJob.id);
+            const [updatedJob] = await db.update(extractionJobs)
+              .set({
+                location,
+                notes,
+                status: 'processing',
+                progress: 0,
+                currentStep: 'initializing',
+                message: 'Starting extraction...',
+                estimatedDuration: estimatedDuration,
+                recipeId: null,
+                errorMessage: null,
+                updatedAt: new Date(),
+                completedAt: null
+              })
+              .where(eq(extractionJobs.id, existingJob.id))
+              .returning();
+            
+            jobId = updatedJob.id;
+          }
+        } else {
+          // Create new job if none exists
+          const [newJob] = await db.insert(extractionJobs).values({
+            url,
+            location,
+            notes,
+            status: 'processing',
+            progress: 0,
+            currentStep: 'initializing',
+            message: 'Starting extraction...',
+            estimatedDuration: estimatedDuration
+          }).returning();
+          
+          jobId = newJob.id;
+          console.log('💾 [EXTRACT-STREAM] Created new extraction job:', jobId);
+        }
       } catch (error) {
-        console.error('❌ [EXTRACT-STREAM] Failed to create job:', error);
+        console.error('❌ [EXTRACT-STREAM] Failed to create/update job:', error);
         // Continue without job persistence if DB fails
       }
       

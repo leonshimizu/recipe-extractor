@@ -88,7 +88,7 @@ export default function HomeClient({ recentRecipes }: HomeClientProps) {
       console.log('🔄 [HOME-CLIENT] Proceeding with full extraction');
     }
 
-    // Add URL to recent extractions for background tracking
+    // Add URL to recent extractions for background tracking BEFORE starting extraction
     addRecentUrl(url);
     
     // Start enhanced extraction with streaming
