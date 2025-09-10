@@ -291,18 +291,16 @@ export default function FastHistoryClient({
   const hasActiveFilters = localSearch.trim() || localSelectedTags.length > 0 || localSelectedSource;
   const activeFilterCount = (localSearch.trim() ? 1 : 0) + (localSelectedTags.length > 0 ? 1 : 0) + (localSelectedSource ? 1 : 0);
 
-  // For display: if no filters, paginate the results; if filters, show all filtered results
+  // For display: if no filters, show all recipes (server already paginated); if filters, show all filtered results
   const displayedRecipes = useMemo(() => {
     if (hasActiveFilters) {
       // Show all filtered results when actively filtering
       return filteredRecipes;
     } else {
-      // Show only current page when not filtering
-      const startIndex = (currentPage - 1) * RECIPES_PER_PAGE;
-      const endIndex = startIndex + RECIPES_PER_PAGE;
-      return filteredRecipes.slice(startIndex, endIndex);
+      // Show all recipes (server already sent the correct page)
+      return filteredRecipes;
     }
-  }, [filteredRecipes, hasActiveFilters, currentPage]);
+  }, [filteredRecipes, hasActiveFilters]);
 
   if (allRecipes.length === 0) {
     return (

@@ -26,9 +26,7 @@ export default async function HistoryData({ searchParams }: HistoryDataProps) {
   const totalRecipes = totalCountResult.count;
   const totalPages = Math.ceil(totalRecipes / RECIPES_PER_PAGE);
 
-  // Load more recipes for client-side filtering (2 pages worth for better UX)
-  const recipesToLoad = Math.min(RECIPES_PER_PAGE * 2, 50); // Cap at 50 for performance
-  
+  // Load the exact recipes for the current page
   const allRecipesForPage = await db
     .select({
       id: recipes.id,
@@ -39,8 +37,8 @@ export default async function HistoryData({ searchParams }: HistoryDataProps) {
     })
     .from(recipes)
     .orderBy(desc(recipes.createdAt))
-    .limit(recipesToLoad)
-    .offset(Math.max(0, offset - RECIPES_PER_PAGE)); // Load previous page too for context
+    .limit(RECIPES_PER_PAGE)
+    .offset(offset);
 
   // Get available tags and sources for filters (from all recipes, not just current page)
   const allRecipesForFilters = await db
