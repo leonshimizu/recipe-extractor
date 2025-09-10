@@ -6,7 +6,7 @@ import { openai } from '@ai-sdk/openai';
 const RecipeComponentSchema = z.object({
   name: z.string().min(1), // e.g., "Meatloaf", "Glaze", "Sauce"
   ingredients: z.array(z.object({
-    quantity: z.string().nullable().default(null),
+    quantity: z.coerce.string().nullable().default(null),
     unit: z.string().nullable().default(null),
     name: z.string(),
     notes: z.string().nullable().optional().default(null),
@@ -29,7 +29,7 @@ export const RecipeSchema = z.object({
   components: z.array(RecipeComponentSchema).min(1),
   // Legacy fields for backward compatibility (will be auto-populated from components)
   ingredients: z.array(z.object({
-    quantity: z.string().nullable(),
+    quantity: z.coerce.string().nullable(),
     unit: z.string().nullable(),
     name: z.string(),
     notes: z.string().nullable().optional(),
@@ -40,7 +40,7 @@ export const RecipeSchema = z.object({
   notes: z.string().nullable().optional().default(null), // Made optional
   tags: z.array(z.string()).default([]),
   totalEstimatedCost: z.number().nullable().default(null),
-  costLocation: z.string(),
+  costLocation: z.string().default('Guam'),
   nutrition: z.object({
     perServing: z.object({
       calories: z.number().nullable().default(null),
@@ -106,12 +106,15 @@ function sanitizeText(text: string): string {
     // Replace smart quotes with regular quotes
     .replace(/[""]/g, '"')
     .replace(/['']/g, "'")
-    // Replace ellipsis with three dots
-    .replace(/…/g, '...')
+    // Replace all ellipsis variants with three dots (including Unicode 8230)
+    .replace(/…|\u2026|\.\.\./g, '...')
     // Replace em dash and en dash with regular dash
     .replace(/[—–]/g, '-')
-    // Remove any remaining high Unicode characters
-    .replace(/[\u0100-\uFFFF]/g, ' ')
+    // Replace other problematic Unicode characters
+    .replace(/[\u2013-\u2026]/g, '-') // En dash, em dash, ellipsis range
+    .replace(/[\u00A0]/g, ' ') // Non-breaking space
+    // Remove any remaining high Unicode characters that could cause ByteString issues
+    .replace(/[\u0080-\uFFFF]/g, ' ')
     // Clean up multiple spaces
     .replace(/\s+/g, ' ')
     .trim();
@@ -186,7 +189,9 @@ EXTRACTION RULES:
   * Round to nearest $0.25 (e.g., 0.50, 0.75, 1.00, 1.25)
   * Use null only if ingredient is completely unclear, but estimate when possible
 - Calculate totalEstimatedCost as sum of all ingredient costs
-- Set costLocation to exactly: ${location}
+- REQUIRED: Set costLocation to exactly: "${location}"
+- REQUIRED: equipment must be an array of strings (e.g., ["air fryer", "mixing bowl"]), NOT objects
+- REQUIRED: quantity must be a string (e.g., "2", "1/2", "1.5"), NOT a number
 - For servings, ALWAYS try to estimate a reasonable number based on ingredient quantities:
   * Look at total amounts (1 lb pasta typically serves 4-6 people)
   * Consider portion sizes for the type of dish (appetizer vs main course)

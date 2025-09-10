@@ -90,23 +90,27 @@ Visit `http://localhost:3000` 🎉
 - User pastes a TikTok, YouTube, or Instagram URL
 - System detects platform and chooses optimal extraction method
 
-### 2. **Audio Transcription** (YouTube & TikTok)
-- **yt-dlp** downloads video audio to temporary file
-- **OpenAI Whisper API** transcribes spoken content to text
-- Captures all ingredients, steps, and cooking tips mentioned in video
+### 2. **Multi-Source Content Gathering**
+- **🎤 Audio Transcription**: Full spoken content via Whisper API (TikTok & YouTube)
+- **📝 Video Metadata**: Title, description, and captions when available
+- **🔄 Smart Fallbacks**: YouTube Data API when audio extraction fails
 
-### 3. **Content Extraction**
-- Combines transcribed audio + video metadata (title, description)
-- **OpenAI GPT-4o-mini** processes combined content
-- Structures data into standardized recipe format
+### 3. **Intelligent Content Combination**
+- **Combines ALL sources**: Audio transcript + title + description + captions
+- **Cross-references information**: Uses multiple sources for accuracy and completeness
+- **Quality hierarchy**: Audio transcription provides highest quality, metadata fills gaps
 
-### 4. **Smart Enhancement**
+### 4. **AI Recipe Extraction**
+- **OpenAI GPT-4o-mini** processes the combined content from all sources
+- Structures data into standardized recipe format with ingredients, steps, and timing
+
+### 5. **Smart Enhancement**
 - Estimates ingredient costs based on user's location
 - Calculates nutritional information (calories, macros, etc.)
 - Generates relevant tags and categories
 - Infers missing cooking details from context
 
-### 5. **Storage & Display**
+### 6. **Storage & Display**
 - Saves to **Neon PostgreSQL** database with full metadata
 - Displays formatted recipe with quality indicators
 - Enables search, filtering, and recipe management

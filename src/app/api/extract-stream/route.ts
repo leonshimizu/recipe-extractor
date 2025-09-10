@@ -7,7 +7,7 @@ import { extractVideoContent } from '@/lib/video-extractor';
 import { transcribeVideoWithWhisper, isWhisperAvailable } from '@/lib/whisper-transcription';
 import { eq } from 'drizzle-orm';
 
-type Body = { url: string; notes?: string; location?: string };
+type Body = { url: string; notes?: string; location?: string; forceReprocess?: boolean };
 
 // Simple in-memory cache to prevent duplicate processing
 const processingUrls = new Set<string>();
@@ -32,11 +32,12 @@ function estimateExtractionTime(
 
 // Server-Sent Events for real-time progress updates
 export async function POST(req: NextRequest) {
-  const { url, notes = '', location = 'Guam' } = (await req.json()) as Body;
+  const { url, notes = '', location = 'Guam', forceReprocess = false } = (await req.json()) as Body;
   
   console.log('🚀 [EXTRACT-STREAM] Starting extraction for:', url);
   console.log('📍 [EXTRACT-STREAM] Location:', location);
   console.log('📝 [EXTRACT-STREAM] Notes:', notes || '(none)');
+  console.log('🔄 [EXTRACT-STREAM] Force reprocess:', forceReprocess);
   
   if (!url) {
     console.error('❌ [EXTRACT-STREAM] Missing URL');
@@ -64,11 +65,11 @@ export async function POST(req: NextRequest) {
   processingUrls.add(url);
   console.log('🔒 [EXTRACT-STREAM] URL marked as processing:', url);
 
-  // Check for existing recipe first
+  // Check for existing recipe first (unless force reprocessing)
   console.log('🔍 [EXTRACT-STREAM] Checking for existing recipe...');
   const existingRecipe = await db.select().from(recipes).where(eq(recipes.sourceUrl, url)).limit(1);
   
-  if (existingRecipe.length > 0) {
+  if (existingRecipe.length > 0 && !forceReprocess) {
     console.log('✅ [EXTRACT-STREAM] Found existing recipe:', existingRecipe[0].id);
     // Remove from processing set since we're not actually processing
     processingUrls.delete(url);
@@ -77,6 +78,9 @@ export async function POST(req: NextRequest) {
       recipe: existingRecipe[0].extracted,
       isExisting: true 
     });
+  } else if (existingRecipe.length > 0 && forceReprocess) {
+    console.log('🔄 [EXTRACT-STREAM] Found existing recipe but force reprocessing:', existingRecipe[0].id);
+    console.log('🗑️ [EXTRACT-STREAM] Will delete existing recipe and create new one');
   }
 
   const encoder = new TextEncoder();
@@ -356,6 +360,19 @@ export async function POST(req: NextRequest) {
           totalCost: record.totalEstimatedCost,
           equipmentCount: record.equipment?.length || 0
         });
+
+        // Delete existing recipe if force reprocessing
+        if (existingRecipe.length > 0 && forceReprocess) {
+          console.log('🗑️ [EXTRACT-STREAM] Deleting existing recipe for reprocessing...');
+          
+          // First delete any related extraction jobs
+          await db.delete(extractionJobs).where(eq(extractionJobs.recipeId, existingRecipe[0].id));
+          
+          // Then delete the recipe
+          await db.delete(recipes).where(eq(recipes.id, existingRecipe[0].id));
+          
+          console.log('✅ [EXTRACT-STREAM] Existing recipe deleted, creating new one...');
+        }
 
         const inserted = await db.insert(recipes).values({
           sourceUrl: url,
