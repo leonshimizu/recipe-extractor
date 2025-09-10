@@ -162,6 +162,11 @@ EXTRACTION RULES:
   * Examples: {"quantity": "2", "unit": "cups", "name": "flour"} or {"quantity": null, "unit": null, "name": "salt"}
 - Steps for each component should be actionable and ordered
 - Legacy fields (ingredients, steps) will be auto-populated - focus on the components array
+- CRITICAL: components must be a valid JSON array of objects. Each component MUST be a complete object:
+  * CORRECT: [{"name": "Main Dish", "ingredients": [...], "steps": [...], "notes": null}]
+  * WRONG: [{"name": "Main Dish"}, "ingredients", [...], "steps", [...]]
+  * WRONG: ["Main Dish", {"ingredients": [...]}]
+  * Each component object must have: name (string), ingredients (array), steps (array), notes (string or null)
 - For times, extract ALL timing components:
   * prep: Time for mixing, chopping, blending ingredients (estimate if not explicit)
   * cook: Active cooking time (microwave, oven, stovetop, etc.)
@@ -218,7 +223,27 @@ EXTRACTION RULES:
   * Use lowercase, hyphenated format for consistency
 - If no clear recipe is found, create a basic structure with the available information.
 - TITLE: Use the VIDEO TITLE if provided, or create a descriptive title based on the main dish being made. Never use generic titles like "Recipe from TikTok" - always be specific about what food is being prepared.
-- IMPORTANT: If ingredients or steps are unclear, make reasonable assumptions based on context rather than leaving arrays empty.`;
+- IMPORTANT: If ingredients or steps are unclear, make reasonable assumptions based on context rather than leaving arrays empty.
+
+CRITICAL JSON FORMAT REMINDER:
+The "components" field must be a properly formatted JSON array of complete objects. Example:
+{
+  "components": [
+    {
+      "name": "Main Dish",
+      "ingredients": [{"quantity": "1", "unit": "lb", "name": "chicken", "notes": null, "estimatedCost": 5.0}],
+      "steps": ["Cook the chicken until done."],
+      "notes": null
+    },
+    {
+      "name": "Sauce", 
+      "ingredients": [{"quantity": "2", "unit": "tbsp", "name": "butter", "notes": null, "estimatedCost": 0.5}],
+      "steps": ["Melt butter in pan."],
+      "notes": "Optional garnish"
+    }
+  ]
+}
+DO NOT break components into separate array elements or strings.`;
 
   console.log('🤖 [LLM] Calling OpenAI with gpt-4o-mini...');
   console.log('🤖 [LLM] Prompt length:', promptText.length);
@@ -271,6 +296,81 @@ EXTRACTION RULES:
     
   } catch (error) {
     console.error('❌ [LLM] Error during recipe extraction:', error);
+    
+    // Check if this is a component formatting error
+    const isComponentError = error instanceof Error && 
+      error.message.includes('components') && 
+      (error.message.includes('Expected object, received string') || 
+       error.message.includes('Expected object, received array'));
+    
+    if (isComponentError) {
+      console.log('🔄 [LLM] Detected component formatting error, attempting retry with simplified prompt...');
+      
+      try {
+        // Retry with a more explicit, simplified prompt
+        const retryPrompt = `Extract recipe data from this content and return ONLY valid JSON.
+
+Content: ${raw}
+
+CRITICAL: Return a valid JSON object with this EXACT structure:
+{
+  "title": "Recipe Name",
+  "sourceUrl": "${sourceUrl}",
+  "servings": 4,
+  "times": {"prep": "10 min", "cook": "15 min", "total": "25 min"},
+  "components": [
+    {
+      "name": "Main Component",
+      "ingredients": [{"quantity": "1", "unit": "cup", "name": "flour", "notes": null, "estimatedCost": 1.0}],
+      "steps": ["Step 1", "Step 2"],
+      "notes": null
+    }
+  ],
+  "ingredients": [],
+  "steps": [],
+  "equipment": ["pan", "bowl"],
+  "notes": null,
+  "tags": ["easy", "quick"],
+  "totalEstimatedCost": 5.0,
+  "costLocation": "${location}",
+  "nutrition": {"perServing": {"calories": 200, "protein": 10, "carbs": 30, "fat": 5, "fiber": 2, "sugar": 1, "sodium": 300}, "total": {"calories": 800, "protein": 40, "carbs": 120, "fat": 20, "fiber": 8, "sugar": 4, "sodium": 1200}}
+}
+
+Each component must be a complete object with name, ingredients, steps, and notes fields.`;
+
+        const { object: retryObject } = await generateObject({
+          model: openai('gpt-4o-mini'),
+          schema: RecipeSchema,
+          prompt: retryPrompt,
+          temperature: 0.1, // Lower temperature for more consistent formatting
+        });
+
+        console.log('✅ [LLM] Retry successful!');
+        
+        const finalRetryObject = {
+          ...retryObject,
+          sourceUrl,
+          costLocation: location
+        };
+
+        console.log('🤖 [LLM] Retry response received:', {
+          title: finalRetryObject.title,
+          componentsCount: finalRetryObject.components?.length || 0,
+          ingredientsCount: finalRetryObject.components?.reduce((sum, comp) => sum + (comp.ingredients?.length || 0), 0) || 0,
+          stepsCount: finalRetryObject.components?.reduce((sum, comp) => sum + (comp.steps?.length || 0), 0) || 0,
+          servings: finalRetryObject.servings,
+          hasTimes: !!(finalRetryObject.times?.prep || finalRetryObject.times?.cook || finalRetryObject.times?.total),
+          totalCost: finalRetryObject.totalEstimatedCost
+        });
+        
+        return finalRetryObject;
+        
+      } catch (retryError) {
+        console.error('❌ [LLM] Retry also failed:', retryError);
+        // Fall through to original error handling
+      }
+    }
+    
     console.error('❌ [LLM] Error details:', {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
