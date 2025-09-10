@@ -139,6 +139,26 @@ export default function HomeClient({ recentRecipes }: HomeClientProps) {
               compact={true}
             />
           </div>
+          
+          {/* Platform Quality Notice */}
+          <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
+            <AlertCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+            <AlertDescription className="text-green-800 dark:text-green-200">
+              <div className="space-y-1">
+                <div className="font-medium text-sm">Extraction Quality:</div>
+                <div className="text-xs space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                    <span><strong>TikTok & YouTube:</strong> High quality - full audio transcription available</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
+                    <span><strong>Instagram:</strong> Good quality - uses video descriptions and captions</span>
+                  </div>
+                </div>
+              </div>
+            </AlertDescription>
+          </Alert>
         </div>
 
         {/* Background Jobs Indicator */}

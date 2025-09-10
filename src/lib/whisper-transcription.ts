@@ -221,17 +221,10 @@ function extractVideoId(url: string): string | null {
 
 /**
  * Check if Whisper transcription is available (has API key)
- * Note: We don't check for yt-dlp here because it might be available at runtime
- * even if not detected during build/startup phase
+ * Note: We only check for API key here - yt-dlp availability is checked at runtime
  */
 export function isWhisperAvailable(): boolean {
-  if (!process.env.OPENAI_API_KEY) {
-    console.log('🎤 [WHISPER] OpenAI API key not found - Whisper transcription unavailable');
-    return false;
-  }
-  
-  // Only check for API key - let yt-dlp be checked at runtime
-  return true;
+  return !!process.env.OPENAI_API_KEY;
 }
 
 /**

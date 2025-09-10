@@ -86,11 +86,11 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
                       </h3>
                       <p className="text-xs leading-relaxed">
                         {row.hasAudioTranscript ? (
-                          'All spoken instructions captured using AI audio transcription for maximum accuracy.'
+                          'All spoken instructions captured using AI audio transcription for maximum accuracy. Best quality available.'
                         ) : row.extractionQuality === 'medium' ? (
-                          'Extracted from video title, description, and captions. Some details may be inferred.'
+                          'Extracted from video title, description, and available captions. Good quality with some details inferred.'
                         ) : (
-                          'Extracted from limited text. Some ingredients and steps may be inferred.'
+                          'Extracted from limited text content. Basic quality - some ingredients and steps may be inferred.'
                         )}
                       </p>
                     </div>

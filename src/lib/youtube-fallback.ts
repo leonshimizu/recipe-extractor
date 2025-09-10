@@ -91,7 +91,7 @@ export async function getYouTubeMetadata(videoUrl: string): Promise<YouTubeFallb
  * Option 2: Use a third-party API service
  * This is a placeholder - you'd need to implement with a specific service
  */
-export async function getYouTubeTranscriptFromAPI(videoUrl: string): Promise<YouTubeFallbackResult> {
+export async function getYouTubeTranscriptFromAPI(_videoUrl: string): Promise<YouTubeFallbackResult> {
   // Example using a hypothetical service
   // You could use services like:
   // - AssemblyAI
@@ -105,7 +105,7 @@ export async function getYouTubeTranscriptFromAPI(videoUrl: string): Promise<You
 /**
  * Option 3: Enhanced yt-dlp with different strategies
  */
-export async function tryEnhancedYtDlp(videoUrl: string): Promise<YouTubeFallbackResult> {
+export async function tryEnhancedYtDlp(_videoUrl: string): Promise<YouTubeFallbackResult> {
   const strategies = [
     // Strategy 1: Use different user agent
     '--user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"',
