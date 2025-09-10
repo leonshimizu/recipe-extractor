@@ -3,6 +3,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs/promises';
 import path from 'path';
+import { getYouTubeContentWithFallback } from './youtube-fallback';
 
 const execAsync = promisify(exec);
 
@@ -39,6 +40,25 @@ export async function transcribeVideoWithWhisper(videoUrl: string): Promise<Whis
     const audioResult = await downloadAudio(videoUrl);
     
     if (!audioResult.success || !audioResult.filePath) {
+      // If yt-dlp fails and this is YouTube, try fallback methods
+      const isYouTube = videoUrl.toLowerCase().includes('youtube.com') || videoUrl.toLowerCase().includes('youtu.be');
+      
+      if (isYouTube) {
+        console.log('🔄 yt-dlp failed for YouTube, trying fallback methods...');
+        const fallbackResult = await getYouTubeContentWithFallback(videoUrl);
+        
+        if (fallbackResult.success && fallbackResult.transcript) {
+          console.log('✅ YouTube fallback successful, using transcript directly');
+          return {
+            text: fallbackResult.transcript,
+            success: true,
+            duration: 0 // Duration unknown from transcript
+          };
+        }
+        
+        console.log('❌ YouTube fallback also failed:', fallbackResult.error);
+      }
+      
       return {
         text: '',
         success: false,
