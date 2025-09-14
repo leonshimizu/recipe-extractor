@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useTransition } from 'react';
+import { useState, useMemo, useTransition, useRef, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -55,6 +55,7 @@ interface FastHistoryClientProps {
   currentPage: number;
   totalPages: number;
   totalRecipes: number;
+  hasFilters: boolean;
 }
 
 const RECIPES_PER_PAGE = 12;
@@ -65,7 +66,8 @@ export default function FastHistoryClient({
   availableSources,
   currentPage,
   totalPages,
-  totalRecipes
+  totalRecipes,
+  hasFilters
 }: FastHistoryClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -78,11 +80,12 @@ export default function FastHistoryClient({
   const [localSelectedTags, setLocalSelectedTags] = useState<string[]>(
     searchParams.get('tags')?.split(',').filter(Boolean) || []
   );
-  const [localSelectedSource, setLocalSelectedSource] = useState<string>(
-    searchParams.get('source') || ''
+  const [localSelectedSources, setLocalSelectedSources] = useState<string[]>(
+    searchParams.get('source')?.split(',').filter(Boolean) || []
   );
   const [showFilters, setShowFilters] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [isLocallyFiltering, setIsLocallyFiltering] = useState(false);
 
   // Fast client-side filtering for instant feedback
   const filteredRecipes = useMemo(() => {
@@ -131,20 +134,22 @@ export default function FastHistoryClient({
       });
     }
 
-    // Tag filters
+    // Tag filters - OR logic (show recipes that have ANY of the selected tags)
     if (localSelectedTags.length > 0) {
       filtered = filtered.filter(recipe =>
-        localSelectedTags.every(tag => recipe.extracted.tags.includes(tag))
+        localSelectedTags.some(tag => recipe.extracted.tags.includes(tag))
       );
     }
 
-    // Source filter
-    if (localSelectedSource) {
-      filtered = filtered.filter(recipe => recipe.sourceType === localSelectedSource);
+    // Source filters - OR logic (show recipes from ANY of the selected sources)
+    if (localSelectedSources.length > 0) {
+      filtered = filtered.filter(recipe => 
+        localSelectedSources.includes(recipe.sourceType)
+      );
     }
 
     return filtered;
-  }, [allRecipes, localSearch, localSelectedTags, localSelectedSource]);
+  }, [allRecipes, localSearch, localSelectedTags, localSelectedSources]);
 
   // Group tags by category for better UX
   const tagCategories = useMemo(() => ({
@@ -223,7 +228,7 @@ export default function FastHistoryClient({
   }, [availableSources, sourceFrequency]);
 
   // Update URL with debounced server-side sync (for pagination/sharing)
-  const syncFiltersToUrl = (search: string, tags: string[], source: string) => {
+  const syncFiltersToUrl = useCallback((search: string, tags: string[], sources: string[]) => {
     startTransition(() => {
       const params = new URLSearchParams(searchParams);
       
@@ -239,8 +244,8 @@ export default function FastHistoryClient({
         params.delete('tags');
       }
       
-      if (source) {
-        params.set('source', source);
+      if (sources.length > 0) {
+        params.set('source', sources.join(','));
       } else {
         params.delete('source');
       }
@@ -251,7 +256,32 @@ export default function FastHistoryClient({
       const newUrl = queryString ? `/history?${queryString}` : '/history';
       router.push(newUrl);
     });
-  };
+  }, [searchParams, router, startTransition]);
+
+  // Use refs to track the latest filter state for debouncing
+  const latestFiltersRef = useRef({ search: localSearch, tags: localSelectedTags, sources: localSelectedSources });
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Update refs whenever local state changes
+  useEffect(() => {
+    latestFiltersRef.current = { search: localSearch, tags: localSelectedTags, sources: localSelectedSources };
+  }, [localSearch, localSelectedTags, localSelectedSources]);
+
+  // Debounced sync function that uses the latest state
+  const debouncedSync = useCallback(() => {
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+    }
+    
+    // Show that we're about to sync
+    setIsLocallyFiltering(true);
+    
+    syncTimeoutRef.current = setTimeout(() => {
+      const { search, tags, sources } = latestFiltersRef.current;
+      syncFiltersToUrl(search, tags, sources);
+      // The loading state will be cleared when the component re-renders with new data
+    }, 300);
+  }, [syncFiltersToUrl]);
 
   const toggleTag = (tag: string) => {
     const newTags = localSelectedTags.includes(tag)
@@ -261,46 +291,67 @@ export default function FastHistoryClient({
     // Instant UI update
     setLocalSelectedTags(newTags);
     
-    // Debounced server sync
-    setTimeout(() => syncFiltersToUrl(localSearch, newTags, localSelectedSource), 300);
+    // Debounced server sync using latest state
+    debouncedSync();
   };
 
   const toggleSource = (source: string) => {
-    const newSource = localSelectedSource === source ? '' : source;
+    const newSources = localSelectedSources.includes(source)
+      ? localSelectedSources.filter(s => s !== source)
+      : [...localSelectedSources, source];
     
     // Instant UI update
-    setLocalSelectedSource(newSource);
+    setLocalSelectedSources(newSources);
     
-    // Debounced server sync
-    setTimeout(() => syncFiltersToUrl(localSearch, localSelectedTags, newSource), 300);
+    // Debounced server sync using latest state
+    debouncedSync();
   };
 
   const handleSearchChange = (value: string) => {
     setLocalSearch(value);
-    // Debounced server sync
-    setTimeout(() => syncFiltersToUrl(value, localSelectedTags, localSelectedSource), 500);
+    // Debounced server sync using latest state
+    debouncedSync();
   };
 
   const clearAllFilters = () => {
+    // Cancel any pending sync
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+    }
+    
     setLocalSearch('');
     setLocalSelectedTags([]);
-    setLocalSelectedSource('');
-    syncFiltersToUrl('', [], '');
+    setLocalSelectedSources([]);
+    syncFiltersToUrl('', [], []);
   };
 
-  const hasActiveFilters = localSearch.trim() || localSelectedTags.length > 0 || localSelectedSource;
-  const activeFilterCount = (localSearch.trim() ? 1 : 0) + (localSelectedTags.length > 0 ? 1 : 0) + (localSelectedSource ? 1 : 0);
+  // Clear loading state when we receive new data from server
+  useEffect(() => {
+    setIsLocallyFiltering(false);
+  }, [allRecipes]);
 
-  // For display: if no filters, show all recipes (server already paginated); if filters, show all filtered results
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const hasActiveFilters = localSearch.trim() || localSelectedTags.length > 0 || localSelectedSources.length > 0;
+  const activeFilterCount = (localSearch.trim() ? 1 : 0) + (localSelectedTags.length > 0 ? 1 : 0) + (localSelectedSources.length > 0 ? 1 : 0);
+
+  // For display: if server already loaded filtered data, use it; otherwise use client filtering
   const displayedRecipes = useMemo(() => {
-    if (hasActiveFilters) {
-      // Show all filtered results when actively filtering
+    if (hasFilters) {
+      // Server loaded all recipes for filtering, apply client-side filters
       return filteredRecipes;
     } else {
-      // Show all recipes (server already sent the correct page)
-      return filteredRecipes;
+      // Server sent paginated results, show them as-is
+      return allRecipes;
     }
-  }, [filteredRecipes, hasActiveFilters]);
+  }, [filteredRecipes, allRecipes, hasFilters]);
 
   if (allRecipes.length === 0) {
     return (
@@ -333,14 +384,21 @@ export default function FastHistoryClient({
       </div>
 
       {/* Search Bar */}
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search recipes, ingredients, instructions, equipment, or anything..."
-          value={localSearch}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          className="pl-10"
-        />
+      <div className="space-y-3 mb-6">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search recipes, ingredients, instructions, equipment, or anything..."
+            value={localSearch}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        {hasActiveFilters && (
+          <p className="text-xs text-muted-foreground">
+            💡 <strong>Tip:</strong> Filters show recipes that match <em>any</em> of your selections - click more to see more results!
+          </p>
+        )}
       </div>
 
       {/* Fast Filters */}
@@ -377,28 +435,29 @@ export default function FastHistoryClient({
           )}
         </div>
 
-        {/* Quick Source Filters */}
+        {/* Quick Filters - Sources and Popular Tags */}
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          <Button
-            variant={!localSelectedSource ? "default" : "secondary"}
-            size="sm"
-            onClick={() => toggleSource('')}
-            className="flex-shrink-0 h-8 text-xs"
-          >
-            All Sources
-          </Button>
+          {/* Source Filters */}
           {popularSources.map(source => (
             <Button
               key={source}
-              variant={localSelectedSource === source ? "default" : "secondary"}
+              variant={localSelectedSources.includes(source) ? "default" : "secondary"}
               size="sm"
               onClick={() => toggleSource(source)}
-              className="flex-shrink-0 h-8 text-xs capitalize"
+              className={cn(
+                "flex-shrink-0 h-8 text-xs capitalize",
+                isLocallyFiltering && "opacity-70"
+              )}
             >
               {source}
               <span className="ml-1 text-xs opacity-70">({sourceFrequency[source] || 0})</span>
             </Button>
           ))}
+          
+          {/* Divider */}
+          {popularSources.length > 0 && popularTags.length > 0 && (
+            <div className="flex-shrink-0 w-px bg-border h-6 self-center mx-1" />
+          )}
           
           {/* Most popular tags as quick filters */}
           {popularTags.map(tag => (
@@ -407,7 +466,8 @@ export default function FastHistoryClient({
               variant={localSelectedTags.includes(tag) ? "default" : "secondary"}
               className={cn(
                 "flex-shrink-0 cursor-pointer h-8 px-3 text-xs hover:bg-accent transition-colors",
-                localSelectedTags.includes(tag) && "bg-primary text-primary-foreground hover:bg-primary/90"
+                localSelectedTags.includes(tag) && "bg-primary text-primary-foreground hover:bg-primary/90",
+                isLocallyFiltering && "opacity-70"
               )}
               onClick={() => toggleTag(tag)}
             >
@@ -472,18 +532,24 @@ export default function FastHistoryClient({
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-muted-foreground">
             <span className="font-medium">
               Showing {displayedRecipes.length} of {totalRecipes} recipes
-              {isPending && <span className="ml-2 text-xs">(syncing...)</span>}
+              {(isPending || isLocallyFiltering) && <span className="ml-2 text-xs">(updating...)</span>}
             </span>
             <div className="flex items-center gap-2 flex-wrap">
-              {localSelectedSource && (
+              {localSelectedSources.slice(0, 2).map(source => (
                 <Badge
+                  key={source}
                   variant="secondary"
-                  className="inline-flex items-center text-xs cursor-pointer hover:bg-destructive hover:text-destructive-foreground transition-colors"
-                  onClick={() => toggleSource('')}
+                  className="inline-flex items-center text-xs cursor-pointer hover:bg-destructive hover:text-destructive-foreground transition-colors capitalize"
+                  onClick={() => toggleSource(source)}
                 >
-                  {localSelectedSource}
+                  {source}
                   <X className="ml-1 h-3 w-3" />
                 </Badge>
+              ))}
+              {localSelectedSources.length > 2 && (
+                <span className="text-xs text-muted-foreground">
+                  +{localSelectedSources.length - 2} more sources
+                </span>
               )}
               {localSelectedTags.slice(0, 3).map(tag => (
                 <Badge
@@ -498,7 +564,7 @@ export default function FastHistoryClient({
               ))}
               {localSelectedTags.length > 3 && (
                 <span className="text-xs text-muted-foreground">
-                  +{localSelectedTags.length - 3} more
+                  +{localSelectedTags.length - 3} more tags
                 </span>
               )}
             </div>
@@ -581,8 +647,8 @@ export default function FastHistoryClient({
         ))}
       </div>
 
-      {/* Pagination - only show if not actively filtering */}
-      {!hasActiveFilters && (
+      {/* Pagination - only show if not filtering (server-side pagination) */}
+      {!hasFilters && !hasActiveFilters && (
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}

@@ -17,8 +17,14 @@ const RECIPES_PER_PAGE = 12;
 export default async function HistoryData({ searchParams }: HistoryDataProps) {
   const page = parseInt(searchParams.page || '1');
   const offset = (page - 1) * RECIPES_PER_PAGE;
+  const search = searchParams.search?.trim();
+  const tags = searchParams.tags?.split(',').filter(Boolean) || [];
+  const sources = searchParams.source?.split(',').filter(Boolean) || [];
+  
+  // Check if we have active filters
+  const hasFilters = Boolean(search) || tags.length > 0 || sources.length > 0;
 
-  // Get total count for pagination
+  // Get total count for pagination (always needed)
   const [totalCountResult] = await db
     .select({ count: count() })
     .from(recipes);
@@ -26,19 +32,35 @@ export default async function HistoryData({ searchParams }: HistoryDataProps) {
   const totalRecipes = totalCountResult.count;
   const totalPages = Math.ceil(totalRecipes / RECIPES_PER_PAGE);
 
-  // Load the exact recipes for the current page
-  const allRecipesForPage = await db
-    .select({
-      id: recipes.id,
-      sourceType: recipes.sourceType,
-      thumbnailUrl: recipes.thumbnailUrl,
-      createdAt: recipes.createdAt,
-      extracted: recipes.extracted,
-    })
-    .from(recipes)
-    .orderBy(desc(recipes.createdAt))
-    .limit(RECIPES_PER_PAGE)
-    .offset(offset);
+  let allRecipesForPage;
+  
+  if (hasFilters) {
+    // When filtering, load ALL recipes (no pagination) so client can filter properly
+    allRecipesForPage = await db
+      .select({
+        id: recipes.id,
+        sourceType: recipes.sourceType,
+        thumbnailUrl: recipes.thumbnailUrl,
+        createdAt: recipes.createdAt,
+        extracted: recipes.extracted,
+      })
+      .from(recipes)
+      .orderBy(desc(recipes.createdAt));
+  } else {
+    // When no filters, use pagination as normal
+    allRecipesForPage = await db
+      .select({
+        id: recipes.id,
+        sourceType: recipes.sourceType,
+        thumbnailUrl: recipes.thumbnailUrl,
+        createdAt: recipes.createdAt,
+        extracted: recipes.extracted,
+      })
+      .from(recipes)
+      .orderBy(desc(recipes.createdAt))
+      .limit(RECIPES_PER_PAGE)
+      .offset(offset);
+  }
 
   // Get available tags and sources for filters (from all recipes, not just current page)
   const allRecipesForFilters = await db
@@ -113,6 +135,7 @@ export default async function HistoryData({ searchParams }: HistoryDataProps) {
       currentPage={page}
       totalPages={totalPages}
       totalRecipes={totalRecipes}
+      hasFilters={hasFilters}
     />
   );
 }
