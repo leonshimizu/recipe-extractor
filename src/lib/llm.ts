@@ -120,6 +120,50 @@ function sanitizeText(text: string): string {
     .trim();
 }
 
+// Function to fix common LLM mistakes before schema validation
+function fixCommonLLMErrors(obj: unknown): unknown {
+  if (!obj || typeof obj !== 'object') return obj;
+  
+  const recipe = obj as Record<string, unknown>;
+  
+  // Fix ingredient name issues
+  if (recipe.components && Array.isArray(recipe.components)) {
+    recipe.components = recipe.components.map((component: unknown) => {
+      const comp = component as Record<string, unknown>;
+      if (comp.ingredients && Array.isArray(comp.ingredients)) {
+        comp.ingredients = comp.ingredients.map((ingredient: unknown) => {
+          const ing = ingredient as Record<string, unknown>;
+          // Fix case where name is null but unit contains the ingredient name
+          if (ing.name === null && ing.unit && typeof ing.unit === 'string') {
+            // Check if unit looks like an ingredient name (not a standard unit)
+            const standardUnits = ['g', 'kg', 'ml', 'l', 'tsp', 'tbsp', 'cup', 'cups', 'oz', 'lb', 'lbs', 'count', 'pieces', 'cloves', 'slices'];
+            const unitLower = ing.unit.toLowerCase();
+            const isStandardUnit = standardUnits.some(unit => unitLower.includes(unit));
+            
+            if (!isStandardUnit) {
+              // Move the unit to name and set unit to a reasonable default
+              ing.name = ing.unit;
+              ing.unit = 'count'; // Default unit
+              console.log(`🔧 [LLM-FIX] Fixed ingredient: moved "${ing.name}" from unit to name`);
+            }
+          }
+          
+          // Ensure name is never null - use a fallback
+          if (ing.name === null || ing.name === undefined) {
+            ing.name = 'unknown ingredient';
+            console.log('🔧 [LLM-FIX] Fixed null ingredient name with fallback');
+          }
+          
+          return ing;
+        });
+      }
+      return comp;
+    });
+  }
+  
+  return recipe;
+}
+
 export async function extractRecipe({ sourceUrl, raw, location = 'Guam' }: { sourceUrl: string; raw: string; location?: string }) {
   console.log('🤖 [LLM] Starting recipe extraction...');
   console.log('🤖 [LLM] Source URL:', sourceUrl);
@@ -197,6 +241,10 @@ EXTRACTION RULES:
 - REQUIRED: Set costLocation to exactly: "${location}"
 - REQUIRED: equipment must be an array of strings (e.g., ["air fryer", "mixing bowl"]), NOT objects
 - REQUIRED: quantity must be a string (e.g., "2", "1/2", "1.5"), NOT a number
+- CRITICAL: ingredient "name" field must NEVER be null - it must always contain the actual ingredient name
+  * CORRECT: {"quantity": "4", "unit": "count", "name": "large eggs", "notes": null}
+  * WRONG: {"quantity": "4", "unit": "large eggs", "name": null, "notes": null}
+  * The ingredient name goes in "name", descriptive units go in "unit" (or use standard units like "count", "pieces")
 - ALLOWED: Components can have empty ingredients arrays (e.g., "Final Assembly", "Baking Instructions") if they only contain cooking steps without new ingredients
 - For servings, ALWAYS try to estimate a reasonable number based on ingredient quantities:
   * Look at total amounts (1 lb pasta typically serves 4-6 people)
@@ -258,11 +306,14 @@ DO NOT break components into separate array elements or strings.`;
     
     console.log('🤖 [LLM] Raw object received from OpenAI:', JSON.stringify(object, null, 2));
     
+    // Fix common LLM mistakes before validation
+    const fixedObject = fixCommonLLMErrors(object);
+    
     // Validate the object manually to provide better error messages
-    const validationResult = RecipeSchema.safeParse(object);
+    const validationResult = RecipeSchema.safeParse(fixedObject);
     if (!validationResult.success) {
       console.error('❌ [LLM] Schema validation failed:', validationResult.error);
-      console.error('❌ [LLM] Failed object:', JSON.stringify(object, null, 2));
+      console.error('❌ [LLM] Failed object:', JSON.stringify(fixedObject, null, 2));
       throw new Error(`Schema validation failed: ${validationResult.error.message}`);
     }
     
