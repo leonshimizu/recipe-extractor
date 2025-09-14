@@ -254,7 +254,9 @@ export default function FastHistoryClient({
       
       const queryString = params.toString();
       const newUrl = queryString ? `/history?${queryString}` : '/history';
-      router.push(newUrl);
+      
+      // Use replace to prevent scroll jumping and avoid cluttering browser history
+      router.replace(newUrl, { scroll: false });
     });
   }, [searchParams, router, startTransition]);
 
@@ -322,7 +324,11 @@ export default function FastHistoryClient({
     setLocalSearch('');
     setLocalSelectedTags([]);
     setLocalSelectedSources([]);
-    syncFiltersToUrl('', [], []);
+    
+    // Clear filters immediately without debouncing
+    startTransition(() => {
+      router.replace('/history', { scroll: false });
+    });
   };
 
   // Clear loading state when we receive new data from server
@@ -573,7 +579,10 @@ export default function FastHistoryClient({
       </div>
 
       {/* Recipe Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <div className={cn(
+        "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 transition-opacity duration-200",
+        (isPending || isLocallyFiltering) && "opacity-90"
+      )}>
         {displayedRecipes.map((recipe) => (
           <div key={recipe.id} className="relative group">
             <Link href={`/recipes/${recipe.id}`} className="block" prefetch={true}>
