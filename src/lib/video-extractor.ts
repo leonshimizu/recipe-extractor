@@ -1,4 +1,5 @@
 import ytdl from '@distube/ytdl-core';
+import { spawn } from 'child_process';
 
 export interface VideoMetadata {
   title: string;
@@ -143,6 +144,94 @@ export async function extractTikTokContent(url: string): Promise<ExtractedConten
 }
 
 /**
+ * Extract Instagram content using yt-dlp
+ */
+export async function extractInstagramContent(url: string): Promise<ExtractedContent> {
+  try {
+    console.log('📸 Extracting Instagram content for:', url);
+    
+    // Use yt-dlp to get Instagram metadata (no download)
+    
+    return new Promise((resolve) => {
+      const ytdlp = spawn('yt-dlp', [
+        '--dump-json',
+        '--no-download',
+        url
+      ]);
+      
+      let output = '';
+      let errorOutput = '';
+      
+      ytdlp.stdout.on('data', (data: Buffer) => {
+        output += data.toString();
+      });
+      
+      ytdlp.stderr.on('data', (data: Buffer) => {
+        errorOutput += data.toString();
+      });
+      
+      ytdlp.on('close', (code: number) => {
+        if (code === 0 && output.trim()) {
+          try {
+            const info = JSON.parse(output.trim());
+            
+            const title = info.title || '';
+            const description = info.description || '';
+            const thumbnail = info.thumbnail || '';
+            const duration = info.duration || 0;
+            
+            console.log('📊 Instagram extraction results:');
+            console.log(`- Title: ${title.substring(0, 100)}...`);
+            console.log(`- Description length: ${description.length} chars`);
+            console.log(`- Duration: ${duration} seconds`);
+            console.log(`- Thumbnail: ${thumbnail ? 'Found' : 'Not found'}`);
+            
+            resolve({
+              title,
+              description,
+              thumbnail,
+              captions: '',
+              combinedText: [title, description].filter(Boolean).join('\n\n'),
+              duration
+            });
+          } catch (parseError) {
+            console.error('❌ Failed to parse Instagram metadata JSON:', parseError);
+            resolve({
+              title: '',
+              description: '',
+              thumbnail: '',
+              captions: '',
+              combinedText: '',
+              duration: 0
+            });
+          }
+        } else {
+          console.error('❌ Instagram metadata extraction failed:', errorOutput);
+          resolve({
+            title: '',
+            description: '',
+            thumbnail: '',
+            captions: '',
+            combinedText: '',
+            duration: 0
+          });
+        }
+      });
+    });
+  } catch (error) {
+    console.error('❌ Instagram content extraction error:', error);
+    return {
+      title: '',
+      description: '',
+      thumbnail: '',
+      captions: '',
+      combinedText: '',
+      duration: 0
+    };
+  }
+}
+
+/**
  * Main function to extract content based on platform
  */
 export async function extractVideoContent(url: string): Promise<ExtractedContent> {
@@ -152,6 +241,8 @@ export async function extractVideoContent(url: string): Promise<ExtractedContent
     return extractYouTubeContent(url);
   } else if (lowerUrl.includes('tiktok.com')) {
     return extractTikTokContent(url);
+  } else if (lowerUrl.includes('instagram.com')) {
+    return extractInstagramContent(url);
   } else {
     // Unsupported platform
     return {

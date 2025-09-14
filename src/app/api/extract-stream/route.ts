@@ -241,6 +241,24 @@ export async function POST(req: NextRequest) {
           }
         } catch (error) {
           console.warn('⚠️ [EXTRACT-STREAM] OEmbed failed, continuing...', error);
+          
+          // For Instagram, try to get thumbnail from enhanced content extraction as fallback
+          if (source === 'instagram') {
+            console.log('📸 [EXTRACT-STREAM] Trying enhanced content extraction for Instagram thumbnail...');
+            try {
+              const videoContent = await extractVideoContent(url);
+              if (videoContent.thumbnail) {
+                thumb = videoContent.thumbnail;
+                console.log('✅ [EXTRACT-STREAM] Got Instagram thumbnail from enhanced extraction');
+              }
+              if (videoContent.title && !title) {
+                title = videoContent.title;
+                console.log('✅ [EXTRACT-STREAM] Got Instagram title from enhanced extraction');
+              }
+            } catch (enhancedError) {
+              console.warn('⚠️ [EXTRACT-STREAM] Enhanced extraction also failed:', enhancedError);
+            }
+          }
         }
 
         console.log('📋 [EXTRACT-STREAM] Final metadata - Title:', title, 'Thumb:', thumb ? 'Yes' : 'No');

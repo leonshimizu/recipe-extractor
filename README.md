@@ -29,7 +29,7 @@ Transform your favorite cooking videos from TikTok, YouTube, and Instagram into 
 ### 🎬 **Multi-Platform Support**
 - **🎤 YouTube**: High-quality audio transcription + video metadata
 - **🎤 TikTok**: High-quality audio transcription + video metadata  
-- **📝 Instagram**: Basic text extraction (title + description only)
+- **🎤 Instagram**: High-quality audio transcription + video metadata
 
 ## 🚀 Quick Start
 
@@ -276,15 +276,26 @@ git push
 ## 🎯 Usage Tips
 
 ### **For Best Results:**
-- **Use YouTube or TikTok videos** - Full audio transcription provides much better recipe quality
+- **All platforms supported** - YouTube, TikTok, and Instagram all provide full audio transcription for high-quality recipes
+- **Choose videos with spoken instructions** - We extract audio + metadata, not visual content
+- **Videos with recipe details in description** - Title, description, and captions are analyzed
 - **Choose videos with clear speech** - Whisper works best with clear audio
 - **Add location for accurate costs** - Ingredient prices vary significantly by region
 - **Use Additional Notes field** - Add any details you noticed that might be missed
 
+### **⚠️ What We Extract:**
+- ✅ **Audio transcription** - All spoken words using Whisper AI
+- ✅ **Video metadata** - Title, description, captions, thumbnails
+- ❌ **Visual content** - On-screen text overlays, graphics, or visual elements
+
+**Best for:** Videos where creators speak the ingredients and instructions aloud, or include recipe details in the description.
+
+**Not ideal for:** Silent videos that rely only on on-screen text overlays without spoken content or description details.
+
 ### **Platform Limitations:**
-- **Instagram**: Limited to title/description text only (no audio access)
-  - Requires `IG_OEMBED_TOKEN` from Facebook Developer account
-  - Without token, Instagram URLs will fail to process
+- **Instagram**: Thumbnail extraction requires `IG_OEMBED_TOKEN` from Facebook Developer account
+  - Without token, Instagram videos will still work but may not have thumbnails
+  - Audio transcription works regardless of token availability
 - **Private/Restricted Videos**: Cannot access audio or metadata
 - **Very Short Videos**: May not contain enough recipe information
 
