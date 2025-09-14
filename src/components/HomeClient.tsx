@@ -209,6 +209,12 @@ export default function HomeClient({ recentRecipes }: HomeClientProps) {
                 setExtractState('error');
                 setCurrentUrl(''); // Clear the URL
               }}
+              onBackgroundMode={() => {
+                // When switching to background mode, reset to idle so user can start new extractions
+                console.log('🔄 [HOME-CLIENT] Extraction switched to background mode, resetting UI');
+                setExtractState('idle');
+                setCurrentUrl('');
+              }}
             />
           )}
 

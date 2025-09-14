@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
@@ -22,9 +22,10 @@ interface EnhancedExtractionProps {
   location?: string;
   onComplete?: (recipeId: string) => void;
   onError?: (error: string) => void;
+  onBackgroundMode?: () => void;
 }
 
-export default function EnhancedExtraction({ url, location = 'Guam', onComplete, onError }: EnhancedExtractionProps) {
+export default function EnhancedExtraction({ url, location = 'Guam', onComplete, onError, onBackgroundMode }: EnhancedExtractionProps) {
   
   const [progress, setProgress] = useState(0);
   const [currentMessage, setCurrentMessage] = useState('Initializing...');
@@ -32,10 +33,12 @@ export default function EnhancedExtraction({ url, location = 'Guam', onComplete,
   const [error, setError] = useState<string | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [estimatedDuration, setEstimatedDuration] = useState(30);
+  const [isBackgroundMode, setIsBackgroundMode] = useState(false);
   const router = useRouter();
   const abortControllerRef = useRef<AbortController | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const hasStartedRef = useRef(false);
+  const isNavigatingAwayRef = useRef(false);
   
   // Debug: Component render state
   // console.log('🎬 [ENHANCED-EXTRACTION] Component rendered with timer state:', {
@@ -84,6 +87,33 @@ export default function EnhancedExtraction({ url, location = 'Guam', onComplete,
         : step
     ));
   };
+
+  const switchToBackgroundMode = useCallback(() => {
+    console.log('🔄 [ENHANCED-EXTRACTION] Switching to background mode');
+    setIsBackgroundMode(true);
+    setCurrentMessage('Processing in background...');
+    setProgress(prev => Math.max(prev, 25)); // Show some progress if none yet
+    
+    // Update steps to show background processing
+    setSteps(prev => prev.map(step => 
+      step.status === 'active' 
+        ? { ...step, status: 'complete', message: 'Continuing in background...' }
+        : step
+    ));
+    
+    // Show user-friendly notification
+    toast.info('Extraction continues in background. You\'ll be notified when complete!', {
+      duration: 5000
+    });
+
+    // After a short delay, notify parent that we've switched to background mode
+    setTimeout(() => {
+      if (onBackgroundMode) {
+        console.log('🔄 [ENHANCED-EXTRACTION] Notifying parent of background mode switch');
+        onBackgroundMode();
+      }
+    }, 2000);
+  }, [onBackgroundMode]);
 
   const startExtraction = async () => {
     
@@ -233,26 +263,9 @@ export default function EnhancedExtraction({ url, location = 'Guam', onComplete,
         err.message.includes('NetworkError')
       );
       
-      if (isStreamDisconnection) {
-        console.log('🔄 [ENHANCED-EXTRACTION] Stream disconnected, but extraction may continue in background');
-        console.log('📱 [ENHANCED-EXTRACTION] Switching to background processing mode...');
-        
-        // Set a more user-friendly message
-        setCurrentMessage('Processing in background...');
-        setProgress(50); // Show some progress
-        
-        // Update steps to show background processing
-        setSteps(prev => prev.map(step => 
-          step.status === 'active' 
-            ? { ...step, status: 'complete', message: 'Continuing in background...' }
-            : step
-        ));
-        
-        // Don't show error toast - instead show info about background processing
-        toast.info('Extraction continues in background. You\'ll be notified when complete!', {
-          duration: 5000
-        });
-        
+      if (isStreamDisconnection || isNavigatingAwayRef.current) {
+        console.log('🔄 [ENHANCED-EXTRACTION] Stream disconnected, switching to background mode');
+        switchToBackgroundMode();
         // Don't call onError - this isn't actually an error
         return;
       }
@@ -290,6 +303,35 @@ export default function EnhancedExtraction({ url, location = 'Guam', onComplete,
     hasStartedRef.current = false;
     // console.log('🔄 [ENHANCED-EXTRACTION] Reset hasStarted flag for new URL:', url);
   }, [url]);
+
+  // Add page visibility detection to switch to background mode when user navigates away
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && !isComplete && !error && !isBackgroundMode && hasStartedRef.current) {
+        console.log('🔄 [ENHANCED-EXTRACTION] Page hidden, switching to background mode');
+        isNavigatingAwayRef.current = true;
+        switchToBackgroundMode();
+      }
+    };
+
+    const handleBeforeUnload = () => {
+      if (!isComplete && !error && !isBackgroundMode && hasStartedRef.current) {
+        console.log('🔄 [ENHANCED-EXTRACTION] Page unloading, switching to background mode');
+        isNavigatingAwayRef.current = true;
+      }
+    };
+
+    // Listen for page visibility changes (tab switching, minimizing)
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Listen for page unload (navigation, refresh, close)
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isComplete, error, isBackgroundMode, switchToBackgroundMode]);
 
   // Start extraction on mount (with guard against double execution)
   useEffect(() => {
@@ -344,19 +386,40 @@ export default function EnhancedExtraction({ url, location = 'Guam', onComplete,
 
   return (
     <div className="space-y-6">
+      {/* Background Mode Alert */}
+      {isBackgroundMode && (
+        <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse" />
+                <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse delay-75" />
+                <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse delay-150" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-medium text-blue-900 dark:text-blue-100">Processing in Background</h4>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  Your recipe extraction is continuing in the background. You can navigate away and we&apos;ll notify you when it&apos;s ready!
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Progress Overview */}
       <Card>
         <CardContent className="p-6">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">
-                {isComplete ? 'Extraction Complete!' : 'Extracting Recipe...'}
+                {isComplete ? 'Extraction Complete!' : isBackgroundMode ? 'Processing in Background' : 'Extracting Recipe...'}
               </h3>
               <Badge 
-                variant={error ? 'destructive' : isComplete ? 'default' : 'secondary'}
+                variant={error ? 'destructive' : isComplete ? 'default' : isBackgroundMode ? 'outline' : 'secondary'}
                 className="text-xs"
               >
-                {error ? 'Failed' : isComplete ? 'Complete' : `${Math.round(progress)}%`}
+                {error ? 'Failed' : isComplete ? 'Complete' : isBackgroundMode ? 'Background' : `${Math.round(progress)}%`}
               </Badge>
             </div>
             
@@ -373,9 +436,17 @@ export default function EnhancedExtraction({ url, location = 'Guam', onComplete,
               </div>
             </div>
             
-            <p className="text-sm text-muted-foreground">
-              {currentMessage}
-            </p>
+            <div className="flex items-center gap-2">
+              {isBackgroundMode && (
+                <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                  <span className="text-xs font-medium">Background Processing</span>
+                </div>
+              )}
+              <p className="text-sm text-muted-foreground flex-1">
+                {currentMessage}
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
